@@ -53,6 +53,20 @@ INSTALLED_APPS = [
     'django_filters',
     'channels',
     
+    # Social authentication
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+    'dj_rest_auth',
+    'dj_rest_auth.registration',
+
+    'rest_framework.authtoken',
+    
+    # API Documentation
+    'drf_spectacular',
+    
     # Local apps
     'accounts.apps.AccountsConfig',
     'tasks.apps.TasksConfig',
@@ -65,6 +79,7 @@ INSTALLED_APPS = [
 # MIDDLEWARE
 
 MIDDLEWARE = [
+    'allauth.account.middleware.AccountMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',  # CORS must be before CommonMiddleware
@@ -119,14 +134,31 @@ DATABASES = {
 
 # CHANNELS & REDIS (WebSocket Support)
 
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
+try:
+    import redis
+    redis_client = redis.Redis(host='127.0.0.1', port=6379, db=0)
+    redis_client.ping()
+    
+    # Redis is working, use it
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                "hosts": [('127.0.0.1', 6379)],
+            },
         },
-    },
-}
+    }
+    print("✅ Using Redis for Channels")
+    
+except Exception as e:
+    # Redis not available, use in-memory (only for development)
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer"
+        }
+    }
+    print("⚠️ Redis not available, using InMemory channel layer")
+    print(f"   Error: {e}")
 
 
 # PASSWORD VALIDATION
@@ -179,7 +211,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CUSTOM USER MODEL
 
-AUTH_USER_MODEL = 'accounts.User'
+AUTH_USER_MODEL = 'accounts.User'   
 
 
 # REST FRAMEWORK
@@ -198,6 +230,8 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 12,
+
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     
     # Date/Time formatting
     'DATETIME_FORMAT': '%Y-%m-%d %H:%M:%S',
@@ -427,18 +461,25 @@ if not DEBUG:
 
 
 # CACHING (Optional - for better performance)
-
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/1',
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        },
-        'KEY_PREFIX': 'multitask',
-        'TIMEOUT': 300,  # 5 minutes
+try:
+    import redis
+    redis.StrictRedis(host='127.0.0.1', port=6379, db=1, socket_connect_timeout=1).ping()
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": "redis://127.0.0.1:6379/1",
+            "KEY_PREFIX": "multitask",
+            "TIMEOUT": 300,
+        }
     }
-}
+    print("Redis cache → ACTIVE")
+except:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    }
+    print("Redis down → using safe in-memory cache")
 
 
 # FILE UPLOAD SETTINGS
@@ -472,3 +513,71 @@ MAX_TASK_BUDGET = 100000
 # Review settings
 MIN_RATING = 1
 MAX_RATING = 5
+
+# DJANGO ALLAUTH & SOCIAL AUTH
+SITE_ID = 1
+
+# Authentication backends
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',  # Default
+    'allauth.account.auth_backends.AuthenticationBackend',  # Allauth
+]
+
+# Allauth settings
+# This single line replaces ACCOUNT_EMAIL_REQUIRED + ACCOUNT_USERNAME_REQUIRED
+ACCOUNT_SIGNUP_FIELDS = [
+    'email*',       # * means required
+    'username*',    # * means required
+    'password1*',
+    'password2*',
+]
+
+# Allow login with username OR email
+ACCOUNT_LOGIN_METHODS = {'username', 'email'}
+
+ACCOUNT_EMAIL_VERIFICATION = 'optional'   # change to 'mandatory' later in production
+ACCOUNT_UNIQUE_EMAIL = True
+
+# Social account settings
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+        'APP': {
+            'client_id': config('GOOGLE_CLIENT_ID', default=''),
+            'secret': config('GOOGLE_CLIENT_SECRET', default=''),
+            'key': ''
+        },
+        'OAUTH_PKCE_ENABLED': True,
+    }
+}
+
+# Social Account Settings
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'optional'
+SOCIALACCOUNT_EMAIL_REQUIRED = True
+SOCIALACCOUNT_QUERY_EMAIL = True
+SOCIALACCOUNT_AUTO_SIGNUP = True
+
+# Rest Auth settings
+REST_AUTH = {
+    'USE_JWT': True,
+    'JWT_AUTH_COOKIE': 'auth-token',
+    'JWT_AUTH_REFRESH_COOKIE': 'refresh-token',
+    'JWT_AUTH_HTTPONLY': False,
+    'USER_DETAILS_SERIALIZER': 'accounts.serializers.UserDetailSerializer',
+    'REGISTER_SERIALIZER': 'accounts.serializers.RegisterSerializer',
+}
+
+# API DOCUMENTATION (drf-spectacular)
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Multitask API',
+    'DESCRIPTION': 'AI-powered freelance marketplace platform',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+}
