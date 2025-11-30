@@ -56,7 +56,7 @@ const googleAuthService = {
                 localStorage.setItem('user', JSON.stringify(data.user));
                 resolve(data);
               } else {
-                reject(new Error(data.detail || 'Google login failed'));
+                reject(new Error(data.error || data.detail || 'Google login failed'));
               }
             } catch (error) {
               reject(error);
@@ -105,7 +105,7 @@ const googleAuthService = {
             localStorage.setItem('user', JSON.stringify(data.user));
             if (onSuccess) onSuccess(data);
           } else {
-            if (onError) onError(new Error(data.detail || 'Google login failed'));
+            if (onError) onError(new Error(data.error || data.detail || 'Google login failed'));
           }
         } catch (error) {
           if (onError) onError(error);
@@ -118,7 +118,7 @@ const googleAuthService = {
       {
         theme: 'outline',
         size: 'large',
-        width: '100%',
+        width: 400,
         text: 'continue_with',
       }
     );

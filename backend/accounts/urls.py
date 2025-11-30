@@ -39,4 +39,5 @@ urlpatterns = [
     # Social authentication (Google OAuth)
     path('google/', include('dj_rest_auth.registration.urls')),
     path('google/login/', GoogleLoginView.as_view(), name='google_login'),
+    path('google/callback/', GoogleLoginView.as_view(), name='google_callback'),
 ]

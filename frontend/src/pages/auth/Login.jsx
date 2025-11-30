@@ -36,9 +36,15 @@ const Login = () => {
     return () => clearInterval(checkGoogleLoaded);
   }, []);
 
-  const handleGoogleSuccess = () => {
-    toast.success('Logged in with Google!');
-    navigate('/dashboard');
+  const handleGoogleSuccess = (data) => {
+    // Update AuthContext with user data
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user) {
+      // Force AuthContext to re-check authentication state
+      window.location.href = '/dashboard'; // Hard redirect to ensure state is loaded
+    } else {
+      navigate('/dashboard');
+    }
   };
 
   const handleGoogleError = (error) => {
@@ -92,22 +98,11 @@ const Login = () => {
         </div>
 
         {/* Google Login */}
-        <div>
-          <div 
-            id="google-signin-button" 
-            ref={googleButtonRef}
-            className="w-full"
-          ></div>
-          
-          {/* Fallback button if Google not loaded */}
-          <button 
-            onClick={() => toast.error('Google Sign-In is loading... Please wait or use email login.')}
-            className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white hover:bg-gray-50 transition mt-2"
-          >
-            <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5 mr-2" />
-            <span className="text-gray-700 font-medium">Continue with Google</span>
-          </button>
-        </div>
+        <div
+          id="google-signin-button"
+          ref={googleButtonRef}
+          className="w-full flex justify-center"
+        ></div>
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">

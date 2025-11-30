@@ -1,8 +1,8 @@
 export const USER_ROLES = {
-  CLIENT: 'CLIENT',
-  FREELANCER: 'FREELANCER',
-  BOTH: 'BOTH',
-  ADMIN: 'ADMIN',
+  CLIENT: 'client',
+  FREELANCER: 'freelancer',
+  BOTH: 'both',
+  ADMIN: 'admin',
 };
 
 export const TASK_STATUS = {
@@ -29,13 +29,14 @@ export const APPLICATION_STATUS = {
 export const API_ENDPOINTS = {
   // Auth
   LOGIN: '/auth/login/',
-  REGISTER: '/auth/registration/',        // ← dj-rest-auth uses /registration/
+  REGISTER: '/auth/register/',
   LOGOUT: '/auth/logout/',
-  PROFILE: '/auth/user/',                  // ← correct endpoint (not /profile/)
-  CHANGE_PASSWORD: '/auth/password/change/',
-  TOKEN_REFRESH: '/auth/token/refresh/',   // ← needed for refresh
+  PROFILE: '/auth/profile/',
+  CHANGE_PASSWORD: '/auth/profile/change-password/',
+  TOKEN_REFRESH: '/auth/token/refresh/',
   CHECK_USERNAME: '/auth/check-username/',
   CHECK_EMAIL: '/auth/check-email/',
+  GOOGLE_LOGIN: '/auth/google/login/',
 
   // Tasks
   TASKS: '/tasks/',

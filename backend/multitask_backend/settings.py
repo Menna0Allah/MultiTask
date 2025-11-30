@@ -28,7 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '*']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1'] if DEBUG else [config('ALLOWED_HOST', default='localhost')]
 
 
 # INSTALLED APPS
@@ -148,7 +148,7 @@ try:
             },
         },
     }
-    print("✅ Using Redis for Channels")
+    print("[OK] Using Redis for Channels")
     
 except Exception as e:
     # Redis not available, use in-memory (only for development)
@@ -157,7 +157,7 @@ except Exception as e:
             "BACKEND": "channels.layers.InMemoryChannelLayer"
         }
     }
-    print("⚠️ Redis not available, using InMemory channel layer")
+    print("[WARNING] Redis not available, using InMemory channel layer")
     print(f"   Error: {e}")
 
 
@@ -472,14 +472,14 @@ try:
             "TIMEOUT": 300,
         }
     }
-    print("Redis cache → ACTIVE")
+    print("Redis cache -> ACTIVE")
 except:
     CACHES = {
         "default": {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
         }
     }
-    print("Redis down → using safe in-memory cache")
+    print("Redis down -> using safe in-memory cache")
 
 
 # FILE UPLOAD SETTINGS

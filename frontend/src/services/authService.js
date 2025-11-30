@@ -6,15 +6,14 @@ const authService = {
    * Login user
    */
   login: async (usernameOrEmail, password) => {
-    const payload = { password };
-    if (usernameOrEmail.includes('@')) {
-      payload.email = usernameOrEmail;
-    } else {
-      payload.username = usernameOrEmail;
-    }
+    const payload = {
+      username_or_email: usernameOrEmail,
+      password: password
+    };
 
     const response = await api.post(API_ENDPOINTS.LOGIN, payload);
-    const { access, refresh, user } = response.data;
+    const { tokens, user } = response.data;
+    const { access, refresh } = tokens;
 
     localStorage.setItem('access_token', access);
     localStorage.setItem('refresh_token', refresh);

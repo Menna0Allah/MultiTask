@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
 import authService from '../../services/authService';
+import googleAuthService from '../../services/googleAuthService';
 import toast from 'react-hot-toast';
 import {
   UserIcon,
@@ -21,7 +22,7 @@ const Register = () => {
     password2: '',
     first_name: '',
     last_name: '',
-    user_type: 'CLIENT',
+    user_type: 'client',
     phone_number: '',
     city: '',
     country: 'Egypt',
@@ -30,6 +31,42 @@ const Register = () => {
   const [errors, setErrors] = useState({});
   const { register } = useAuth();
   const navigate = useNavigate();
+  const googleButtonRef = useRef(null);
+
+  useEffect(() => {
+    // Initialize Google Sign-In
+    googleAuthService.initGoogleAuth();
+
+    // Wait for Google script to load
+    const checkGoogleLoaded = setInterval(() => {
+      if (window.google && googleButtonRef.current) {
+        clearInterval(checkGoogleLoaded);
+        googleAuthService.renderGoogleButton(
+          'google-register-button',
+          handleGoogleSuccess,
+          handleGoogleError
+        );
+      }
+    }, 100);
+
+    return () => clearInterval(checkGoogleLoaded);
+  }, []);
+
+  const handleGoogleSuccess = (data) => {
+    // Update AuthContext with user data
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user) {
+      // Force AuthContext to re-check authentication state
+      window.location.href = '/dashboard'; // Hard redirect to ensure state is loaded
+    } else {
+      navigate('/dashboard');
+    }
+  };
+
+  const handleGoogleError = (error) => {
+    console.error('Google registration error:', error);
+    toast.error('Google registration failed. Please try again.');
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -177,13 +214,14 @@ const Register = () => {
           ))}
         </div>
 
-        {/* Google Register (Placeholder) */}
+        {/* Google Register */}
         {step === 1 && (
           <div>
-            <button className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white hover:bg-gray-50 transition">
-              <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5 mr-2" />
-              <span className="text-gray-700 font-medium">Continue with Google</span>
-            </button>
+            <div
+              id="google-register-button"
+              ref={googleButtonRef}
+              className="w-full flex justify-center"
+            ></div>
 
             <div className="relative mt-6">
               <div className="absolute inset-0 flex items-center">
@@ -286,8 +324,8 @@ const Register = () => {
               <input
               type="radio"
               name="user_type"
-              value="CLIENT"
-              checked={formData.user_type === 'CLIENT'}
+              value="client"
+              checked={formData.user_type === 'client'}
               onChange={handleChange}
               className="w-4 h-4 text-primary-600"
               />
@@ -300,8 +338,8 @@ const Register = () => {
               <input
                 type="radio"
                 name="user_type"
-                value="FREELANCER"
-                checked={formData.user_type === 'FREELANCER'}
+                value="freelancer"
+                checked={formData.user_type === 'freelancer'}
                 onChange={handleChange}
                 className="w-4 h-4 text-primary-600"
               />
@@ -315,8 +353,8 @@ const Register = () => {
               <input
                 type="radio"
                 name="user_type"
-                value="BOTH"
-                checked={formData.user_type === 'BOTH'}
+                value="both"
+                checked={formData.user_type === 'both'}
                 onChange={handleChange}
                 className="w-4 h-4 text-primary-600"
               />

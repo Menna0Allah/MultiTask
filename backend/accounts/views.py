@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth import get_user_model
+from django.conf import settings
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 
@@ -27,10 +28,87 @@ User = get_user_model()
 # ==============================================================================
 # Google OAuth2 login view
 # ==============================================================================
-class GoogleLoginView(SocialLoginView):
-    adapter_class = GoogleOAuth2Adapter
-    callback_url = "http://localhost:5173/auth/google/callback"
-    client_class = OAuth2Client
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+
+class GoogleLoginView(APIView):
+    """
+    Handle Google OAuth login with ID token from Google Sign-In
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        try:
+            # Get the ID token from request
+            token = request.data.get('id_token')
+
+            if not token:
+                return Response(
+                    {'error': 'ID token is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Verify the ID token
+            client_id = settings.SOCIALACCOUNT_PROVIDERS['google']['APP']['client_id']
+            idinfo = id_token.verify_oauth2_token(
+                token,
+                google_requests.Request(),
+                client_id
+            )
+
+            # Get user info from token
+            email = idinfo.get('email')
+            first_name = idinfo.get('given_name', '')
+            last_name = idinfo.get('family_name', '')
+
+            if not email:
+                return Response(
+                    {'error': 'Email not found in token'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Check if user exists
+            user = User.objects.filter(email=email).first()
+
+            if not user:
+                # Create new user
+                username = email.split('@')[0]
+                # Make username unique if already exists
+                base_username = username
+                counter = 1
+                while User.objects.filter(username=username).exists():
+                    username = f"{base_username}{counter}"
+                    counter += 1
+
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    user_type='client',  # Default type
+                )
+
+            # Generate JWT tokens
+            refresh = RefreshToken.for_user(user)
+
+            return Response({
+                'message': 'Login successful',
+                'user': UserDetailSerializer(user).data,
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+            }, status=status.HTTP_200_OK)
+
+        except ValueError as e:
+            # Invalid token
+            return Response(
+                {'error': f'Invalid token: {str(e)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Authentication failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 # ==============================================================================
 # AUTHENTICATION VIEWS
