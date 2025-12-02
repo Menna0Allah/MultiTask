@@ -1,0 +1,2 @@
+GOOGLE_OAUTH_CLIENT_ID = "918215953444-6th8qm8bdm9bucgukt61v2b1ucsvpbf3.apps.googleusercontent.com"
+GOOGLE_OAUTH_CLIENT_SECRET = "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"
