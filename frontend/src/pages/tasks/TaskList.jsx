@@ -28,7 +28,7 @@ const TaskList = () => {
   // Filters
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
-  const [selectedStatus, setSelectedStatus] = useState(searchParams.get('status') || 'OPEN');
+  const [selectedStatus, setSelectedStatus] = useState(searchParams.get('status') || '');
   const [selectedType, setSelectedType] = useState(searchParams.get('type') || '');
   const [minBudget, setMinBudget] = useState(searchParams.get('min_budget') || '');
   const [maxBudget, setMaxBudget] = useState(searchParams.get('max_budget') || '');
@@ -42,6 +42,8 @@ const TaskList = () => {
   }, []);
 
   useEffect(() => {
+    // Scroll to top when component mounts or filters change
+    window.scrollTo(0, 0);
     fetchTasks();
   }, [debouncedSearch, selectedCategory, selectedStatus, selectedType, minBudget, maxBudget, isRemote]);
 
@@ -70,12 +72,12 @@ const TaskList = () => {
         ordering: '-created_at',
       };
 
-      // Update URL params
+      // Update URL params (use replace to avoid cluttering browser history)
       const newParams = {};
       Object.keys(params).forEach(key => {
         if (params[key]) newParams[key] = params[key];
       });
-      setSearchParams(newParams);
+      setSearchParams(newParams, { replace: true });
 
       const data = await taskService.getTasks(params);
       setTasks(data.results || []);

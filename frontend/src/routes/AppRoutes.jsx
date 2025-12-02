@@ -9,12 +9,14 @@ import Home from '../pages/Home';
 import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
 import Dashboard from '../pages/Dashboard';
+import Categories from '../pages/Categories';
 import TaskList from '../pages/tasks/TaskList';
 import TaskDetail from '../pages/tasks/TaskDetail';
 import TaskCreate from '../pages/tasks/TaskCreate';
 import MyTasks from '../pages/tasks/MyTasks';
 import Profile from '../pages/profile/Profile';
 import Messages from '../pages/messages/Messages';
+import HowItWorks from '../pages/HowItWorks';
 import NotFound from '../pages/NotFound';
 
 const AppRoutes = () => {
@@ -36,6 +38,12 @@ const AppRoutes = () => {
           isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />
         } 
       />
+
+      {/* Categories */}
+      <Route path="/categories" element={<Layout><Categories /></Layout>} />
+
+      {/* How it Works */}
+      <Route path="/how-it-works" element={<Layout><HowItWorks /></Layout>} />
 
       {/* Task Routes */}
       <Route path="/tasks" element={<Layout><TaskList /></Layout>} />

@@ -5,24 +5,24 @@ const Footer = () => {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="bg-gray-900 text-gray-300 mt-auto">
-      <div className="container-custom py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+    <footer className="bg-gray-900 dark:bg-gray-950 text-gray-300 dark:text-gray-400 mt-auto transition-colors duration-200">
+      <div className="container-custom px-6 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 md:divide-x md:divide-gray-700 dark:md:divide-gray-800" style={{"--tw-divide-opacity": "0.5"}}>
           {/* Brand */}
-          <div className="col-span-1">
+          <div className="col-span-1 md:pr-8">
             <div className="flex items-center space-x-2 mb-4">
-              <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-primary-600 dark:bg-primary-700 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-xl">M</span>
               </div>
               <span className="text-xl font-bold text-white">Multitask</span>
             </div>
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-gray-400 dark:text-gray-500">
               Your AI-powered freelance marketplace connecting clients with talented professionals.
             </p>
           </div>
 
           {/* For Clients */}
-          <div>
+          <div className="md:px-8">
             <h3 className="text-white font-semibold mb-4">For Clients</h3>
             <ul className="space-y-2 text-sm">
               <li>
@@ -44,7 +44,7 @@ const Footer = () => {
           </div>
 
           {/* For Freelancers */}
-          <div>
+          <div className="md:px-8">
             <h3 className="text-white font-semibold mb-4">For Freelancers</h3>
             <ul className="space-y-2 text-sm">
               <li>
@@ -66,7 +66,7 @@ const Footer = () => {
           </div>
 
           {/* Company */}
-          <div>
+          <div className="md:px-8">
             <h3 className="text-white font-semibold mb-4">Company</h3>
             <ul className="space-y-2 text-sm">
               <li>
@@ -93,7 +93,7 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="border-t border-gray-800 mt-8 pt-8 text-sm text-center">
+        <div className="border-t border-gray-800 dark:border-gray-900 mt-8 pt-8 text-sm text-center">
           <p>&copy; {currentYear} Multitask. All rights reserved. Made with ❤️ in Egypt.</p>
         </div>
       </div>
