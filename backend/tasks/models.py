@@ -50,7 +50,13 @@ class Task(models.Model):
         ('DIGITAL', 'Digital'),    # Remote task
         ('BOTH', 'Both'),
     ]
-    
+
+    # Listing type
+    LISTING_TYPE_CHOICES = [
+        ('task_request', 'Task Request'),  # Client needs work done
+        ('service_offer', 'Service Offer'),  # Freelancer offers service
+    ]
+
     # Basic information
     client = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -67,7 +73,8 @@ class Task(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField()
     task_type = models.CharField(max_length=20, choices=TASK_TYPE_CHOICES, default='PHYSICAL')
-    
+    listing_type = models.CharField(max_length=20, choices=LISTING_TYPE_CHOICES, default='task_request')
+
     # Budget
     budget = models.DecimalField(
         max_digits=10,

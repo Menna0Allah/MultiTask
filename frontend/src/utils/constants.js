@@ -53,6 +53,8 @@ export const API_ENDPOINTS = {
   APPLICATION_ACCEPT: (id) => `/tasks/applications/${id}/accept/`,
   APPLICATION_REJECT: (id) => `/tasks/applications/${id}/reject/`,
   CATEGORIES: '/tasks/categories/',
+  MY_TASK_STATISTICS: '/tasks/my-statistics/',
+  TASK_STATISTICS: '/tasks/statistics/',
 
   // Recommendations
   RECOMMENDED_TASKS: '/recommendations/tasks/',
@@ -76,6 +78,7 @@ export const API_ENDPOINTS = {
 
   // Reviews, stats, etc.
   TASK_REVIEW: (id) => `/tasks/${id}/review/`,
+  TASK_REVIEWS: (id) => `/tasks/${id}/reviews/`,
   USER_REVIEWS: (username) => `/tasks/users/${username}/reviews/`,
 };
 

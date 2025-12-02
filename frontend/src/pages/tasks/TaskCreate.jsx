@@ -14,11 +14,13 @@ import {
 const TaskCreate = () => {
   const navigate = useNavigate();
   const [categories, setCategories] = useState([]);
+  const [listingType, setListingType] = useState('task_request'); // 'task_request' or 'service_offer'
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     category: '',
     task_type: 'PHYSICAL',
+    listing_type: 'task_request',
     budget: '',
     is_negotiable: true,
     location: '',
@@ -44,9 +46,12 @@ const TaskCreate = () => {
   const fetchCategories = async () => {
     try {
       const data = await taskService.getCategories();
-      setCategories(data);
+      // Handle both array and object responses
+      const categoriesArray = Array.isArray(data) ? data : (data.results || []);
+      setCategories(categoriesArray);
     } catch (error) {
       console.error('Error fetching categories:', error);
+      setCategories([]);
     }
   };
 
@@ -186,14 +191,51 @@ const TaskCreate = () => {
     }
   };
 
+  const handleListingTypeChange = (type) => {
+    setListingType(type);
+    setFormData({ ...formData, listing_type: type });
+  };
+
   return (
-    <div className="bg-gray-50 min-h-screen py-8">
-      <div className="container-custom max-w-4xl">
+    <div className="bg-gray-50 dark:bg-gray-900 min-h-screen py-8">
+      <div className="container-custom max-w-4xl px-6">
+        {/* Tab Switcher */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Post a New Task</h1>
-          <p className="text-gray-600">
-            Describe your task and find the perfect freelancer
-          </p>
+          <div className="flex justify-center mb-6">
+            <div className="inline-flex rounded-lg bg-gray-200 dark:bg-gray-700 p-1">
+              <button
+                onClick={() => handleListingTypeChange('task_request')}
+                className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+                  listingType === 'task_request'
+                    ? 'bg-white dark:bg-gray-600 text-primary-600 dark:text-primary-400 shadow-md'
+                    : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                Post a Task
+              </button>
+              <button
+                onClick={() => handleListingTypeChange('service_offer')}
+                className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+                  listingType === 'service_offer'
+                    ? 'bg-white dark:bg-gray-600 text-primary-600 dark:text-primary-400 shadow-md'
+                    : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                Offer a Service
+              </button>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              {listingType === 'task_request' ? 'Post a New Task' : 'Offer Your Service'}
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              {listingType === 'task_request'
+                ? 'Describe your task and find the perfect freelancer'
+                : 'Showcase your skills and attract clients'}
+            </p>
+          </div>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">

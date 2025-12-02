@@ -46,7 +46,7 @@ class TaskListSerializer(serializers.ModelSerializer):
         model = Task
         fields = [
             'id', 'title', 'description', 'client', 'category',
-            'task_type', 'budget', 'is_negotiable', 'location', 'city',
+            'task_type', 'listing_type', 'budget', 'is_negotiable', 'location', 'city',
             'is_remote', 'deadline', 'status', 'views_count',
             'applications_count', 'created_at'
         ]
@@ -66,7 +66,7 @@ class TaskDetailSerializer(serializers.ModelSerializer):
         model = Task
         fields = [
             'id', 'title', 'description', 'client', 'category',
-            'task_type', 'budget', 'is_negotiable', 'location', 'city',
+            'task_type', 'listing_type', 'budget', 'is_negotiable', 'location', 'city',
             'is_remote', 'deadline', 'estimated_duration', 'status',
             'assigned_to', 'image', 'images', 'views_count',
             'applications_count', 'is_applied', 'can_apply',

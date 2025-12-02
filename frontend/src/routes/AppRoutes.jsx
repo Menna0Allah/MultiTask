@@ -62,7 +62,7 @@ const AppRoutes = () => {
       <Route
         path="/tasks/create"
         element={
-          <PrivateRoute requireClient>
+          <PrivateRoute>
             <Layout><TaskCreate /></Layout>
           </PrivateRoute>
         }
