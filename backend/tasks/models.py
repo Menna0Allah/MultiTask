@@ -49,6 +49,8 @@ class Task(models.Model):
         ('PHYSICAL', 'Physical'),  # In-person task
         ('DIGITAL', 'Digital'),    # Remote task
         ('BOTH', 'Both'),
+        ('ONE_TIME', 'One Time'),  # Legacy: One-time task
+        ('RECURRING', 'Recurring'),  # Legacy: Recurring task
     ]
 
     # Listing type

@@ -13,6 +13,7 @@ import Categories from '../pages/Categories';
 import TaskList from '../pages/tasks/TaskList';
 import TaskDetail from '../pages/tasks/TaskDetail';
 import TaskCreate from '../pages/tasks/TaskCreate';
+import TaskEdit from '../pages/tasks/TaskEdit';
 import MyTasks from '../pages/tasks/MyTasks';
 import Profile from '../pages/profile/Profile';
 import Messages from '../pages/messages/Messages';
@@ -47,9 +48,18 @@ const AppRoutes = () => {
 
       {/* Task Routes */}
       <Route path="/tasks" element={<Layout><TaskList /></Layout>} />
-      <Route path="/tasks/:id" element={<Layout><TaskDetail /></Layout>} />
 
       {/* Protected Routes */}
+      <Route
+        path="/tasks/:id/edit"
+        element={
+          <PrivateRoute>
+            <Layout><TaskEdit /></Layout>
+          </PrivateRoute>
+        }
+      />
+
+      <Route path="/tasks/:id" element={<Layout><TaskDetail /></Layout>} />
       <Route
         path="/dashboard"
         element={

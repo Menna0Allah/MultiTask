@@ -16,6 +16,8 @@ export const TASK_TYPE = {
   PHYSICAL: 'Physical',
   DIGITAL: 'Digital',
   BOTH: 'Both',
+  ONE_TIME: 'One Time',
+  RECURRING: 'Recurring',
 };
 
 export const APPLICATION_STATUS = {

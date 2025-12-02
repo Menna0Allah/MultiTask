@@ -302,12 +302,18 @@ const TaskCreate = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Task Type <span className="text-red-500">*</span>
                   </label>
-                  <div className="grid grid-cols-3 gap-4">
-                    {['PHYSICAL', 'DIGITAL', 'BOTH'].map((type) => (
+                  <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
+                    {[
+                      { value: 'PHYSICAL', label: 'Physical' },
+                      { value: 'DIGITAL', label: 'Digital' },
+                      { value: 'BOTH', label: 'Both' },
+                      { value: 'ONE_TIME', label: 'One Time' },
+                      { value: 'RECURRING', label: 'Recurring' }
+                    ].map((type) => (
                       <label
-                        key={type}
+                        key={type.value}
                         className={`flex items-center justify-center p-4 border-2 rounded-lg cursor-pointer transition ${
-                          formData.task_type === type
+                          formData.task_type === type.value
                             ? 'border-primary-600 bg-primary-50'
                             : 'border-gray-300 hover:border-gray-400'
                         }`}
@@ -315,12 +321,12 @@ const TaskCreate = () => {
                         <input
                           type="radio"
                           name="task_type"
-                          value={type}
-                          checked={formData.task_type === type}
+                          value={type.value}
+                          checked={formData.task_type === type.value}
                           onChange={handleChange}
                           className="sr-only"
                         />
-                        <span className="font-medium text-gray-900">{type}</span>
+                        <span className="font-medium text-gray-900 text-sm">{type.label}</span>
                       </label>
                     ))}
                   </div>
