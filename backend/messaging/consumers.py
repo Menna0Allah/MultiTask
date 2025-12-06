@@ -102,13 +102,12 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
     async def chat_message(self, event):
         """Send message to WebSocket"""
         message = event['message']
-        
-        # Don't send message back to sender (they already have it)
-        if message['sender_id'] != self.user.id:
-            await self.send_json({
-                'type': 'chat_message',
-                'message': message
-            })
+
+        # Send to all participants (including sender for confirmation)
+        await self.send_json({
+            'type': 'chat_message',
+            'message': message
+        })
     
     async def typing_indicator(self, event):
         """Send typing indicator to WebSocket"""
@@ -154,12 +153,17 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             conversation.last_message_at = timezone.now()
             conversation.save()
             
-            # Return message data
+            # Return message data with full sender object
             return {
                 'id': message.id,
-                'sender_id': self.user.id,
-                'sender_username': self.user.username,
-                'sender_avatar': self.user.profile_picture.url if self.user.profile_picture else None,
+                'conversation': conversation.id,
+                'sender': {
+                    'id': self.user.id,
+                    'username': self.user.username,
+                    'email': self.user.email,
+                    'profile_picture': self.user.profile_picture.url if self.user.profile_picture else None,
+                    'user_type': self.user.user_type
+                },
                 'content': message.content,
                 'message_type': message.message_type,
                 'created_at': message.created_at.isoformat(),

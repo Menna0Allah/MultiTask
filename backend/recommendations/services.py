@@ -78,14 +78,19 @@ class RecommendationService:
                 user_profile_text
             )
             
-            # Step 4: Return top N task IDs
-            top_task_ids = [item['task'].id for item in ranked_tasks[:limit]]
-            
-            # Return queryset ordered by recommendation score
-            return Task.objects.filter(id__in=top_task_ids).order_by(
-                # Preserve the order from ranking
-                *[f"id={',' if i > 0 else ''}{task_id}" for i, task_id in enumerate(top_task_ids)]
-            )
+            # Step 4: Return top N tasks with scores
+            top_ranked = ranked_tasks[:limit]
+
+            # Attach match_score to each task object
+            for item in top_ranked:
+                # Convert score to percentage (0-100)
+                match_percentage = int(item['score'] * 100)
+                # Clamp between 1-100
+                match_percentage = max(1, min(100, match_percentage))
+                item['task'].match_score = match_percentage
+
+            # Return list of tasks with match_score attribute attached
+            return [item['task'] for item in top_ranked]
             
         except Exception as e:
             logger.error(f"Error in task recommendation: {str(e)}", exc_info=True)

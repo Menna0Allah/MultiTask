@@ -1,7 +1,14 @@
 import os
 from django.core.asgi import get_asgi_application
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'multitask_backend.settings')
+
+# Initialize Django ASGI application early to ensure the AppRegistry
+# is populated before importing anything that may import ORM models.
+django_asgi_app = get_asgi_application()
+
+# Now import everything else
 from channels.routing import ProtocolTypeRouter, URLRouter
-from channels.auth import AuthMiddlewareStack
 from channels.security.websocket import AllowedHostsOriginValidator
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
@@ -9,10 +16,6 @@ from rest_framework_simplejwt.tokens import UntypedToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from django.contrib.auth import get_user_model
 from urllib.parse import parse_qs
-
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'multitask_backend.settings')
-
-django_asgi_app = get_asgi_application()
 
 User = get_user_model()
 

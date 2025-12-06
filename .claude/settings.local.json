@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(venvScriptspip install --upgrade pip)",
+      "Bash(venv/Scripts/pip install:*)",
+      "Bash(npm install)",
+      "Bash(docker:*)",
+      "Bash(venv/Scripts/python:*)",
+      "Bash(venv/Scripts/python.exe:*)",
+      "Bash(venvScriptspip install -r requirements.txt)",
+      "Bash(npm run dev:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(del D:MultiTaskfrontendsrchooksuseGlobalWebSocket.js)",
+      "Bash(timeout 3 echo:*)",
+      "Bash(start-backend.bat)",
+      "Bash(venvScriptspython.exe -m daphne:*)",
+      "Bash(\"./venv/Scripts/python.exe\" -m daphne:*)",
+      "Bash(set DJANGO_SETTINGS_MODULE=multitask_backend.settings)",
+      "Bash(export DJANGO_SETTINGS_MODULE=multitask_backend.settings)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

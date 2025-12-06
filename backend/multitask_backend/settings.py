@@ -335,7 +335,7 @@ CORS_ALLOW_HEADERS = [
 
 # Gemini API Configuration
 GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
-GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-1.5-flash')
+GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-2.5-flash')
 
 # Alternative models (you can switch):
 # - gemini-1.5-flash: Fast & efficient (recommended)

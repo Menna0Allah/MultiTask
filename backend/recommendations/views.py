@@ -5,10 +5,10 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 
 from tasks.models import Task
-from tasks.serializers import TaskListSerializer, PublicUserSerializer
+from tasks.serializers import PublicUserSerializer
 from accounts.models import User
 from .models import UserPreference
-from .serializers import UserPreferenceSerializer
+from .serializers import UserPreferenceSerializer, RecommendedTaskSerializer
 from .services import get_recommendation_service
 from django.core.cache import cache
 import time
@@ -21,7 +21,7 @@ class RecommendedTasksView(generics.ListAPIView):
     """
     Get AI-powered task recommendations for current user (freelancer)
     """
-    serializer_class = TaskListSerializer
+    serializer_class = RecommendedTaskSerializer
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):

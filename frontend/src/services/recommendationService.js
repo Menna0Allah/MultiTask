@@ -2,39 +2,26 @@ import api from './api';
 import { API_ENDPOINTS } from '../utils/constants';
 
 const recommendationService = {
-  /**
-   * Get recommended tasks for freelancer
-   */
-  getRecommendedTasks: async (limit = 10) => {
-    const response = await api.get(API_ENDPOINTS.RECOMMENDED_TASKS, {
-      params: { limit }
-    });
+  // Get personalized task recommendations for freelancers
+  getRecommendedTasks: async (params = {}) => {
+    const response = await api.get(API_ENDPOINTS.RECOMMENDED_TASKS, { params });
     return response.data;
   },
 
-  /**
-   * Get recommended freelancers for task
-   */
-  getRecommendedFreelancers: async (taskId, limit = 10) => {
-    const response = await api.get(API_ENDPOINTS.RECOMMENDED_FREELANCERS(taskId), {
-      params: { limit }
-    });
+  // Get recommended freelancers for a specific task (for clients)
+  getRecommendedFreelancers: async (taskId) => {
+    const response = await api.get(API_ENDPOINTS.RECOMMENDED_FREELANCERS(taskId));
     return response.data;
   },
 
-  /**
-   * Get user preferences
-   */
-  getPreferences: async () => {
+  // Get/Update user preferences
+  getUserPreferences: async () => {
     const response = await api.get(API_ENDPOINTS.USER_PREFERENCES);
     return response.data;
   },
 
-  /**
-   * Update user preferences
-   */
-  updatePreferences: async (preferences) => {
-    const response = await api.patch(API_ENDPOINTS.USER_PREFERENCES, preferences);
+  updateUserPreferences: async (preferences) => {
+    const response = await api.post(API_ENDPOINTS.USER_PREFERENCES, preferences);
     return response.data;
   },
 };
