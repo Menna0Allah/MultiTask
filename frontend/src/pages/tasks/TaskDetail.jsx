@@ -30,6 +30,11 @@ const TaskDetail = () => {
   const [loading, setLoading] = useState(true);
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showAcceptModal, setShowAcceptModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState(null);
+  const [applications, setApplications] = useState([]);
+  const [loadingApplications, setLoadingApplications] = useState(false);
   const [applicationData, setApplicationData] = useState({
     proposal: '',
     offered_price: '',
@@ -38,12 +43,21 @@ const TaskDetail = () => {
   });
   const [applying, setApplying] = useState(false);
   const [canceling, setCanceling] = useState(false);
+  const [accepting, setAccepting] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
 
   useEffect(() => {
     fetchTask();
   }, [id]);
 
   const fetchTask = async () => {
+    // Validate that ID exists and is valid
+    if (!id || id === 'undefined' || id === 'null') {
+      toast.error('Invalid task ID');
+      navigate('/tasks');
+      return;
+    }
+
     try {
       setLoading(true);
       const data = await taskService.getTask(id);
@@ -53,12 +67,124 @@ const TaskDetail = () => {
         ...prev,
         offered_price: data.budget,
       }));
+
+      // Fetch applications if user is task owner
+      if (user?.id === data.client?.id) {
+        fetchApplications();
+      }
     } catch (error) {
       console.error('Error fetching task:', error);
       toast.error('Task not found');
       navigate('/tasks');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchApplications = async () => {
+    try {
+      setLoadingApplications(true);
+      const data = await taskService.getTaskApplications(id);
+      setApplications(data.results || data || []);
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+    } finally {
+      setLoadingApplications(false);
+    }
+  };
+
+  // Calculate suitability score based on multiple factors
+  const calculateSuitabilityScore = (application) => {
+    let score = 0;
+    const maxScore = 100;
+
+    // Price competitiveness (30 points)
+    const priceRatio = application.offered_price / task.budget;
+    if (priceRatio <= 0.8) score += 30; // Under budget
+    else if (priceRatio <= 1.0) score += 25; // At budget
+    else if (priceRatio <= 1.2) score += 15; // Slightly over
+    else score += 5; // Well over budget
+
+    // Freelancer rating (25 points)
+    const rating = application.freelancer?.average_rating || 0;
+    score += (rating / 5) * 25;
+
+    // Completed tasks (20 points)
+    const completedTasks = application.freelancer?.tasks_completed || 0;
+    if (completedTasks >= 50) score += 20;
+    else if (completedTasks >= 20) score += 15;
+    else if (completedTasks >= 10) score += 10;
+    else if (completedTasks >= 5) score += 5;
+
+    // Proposal quality (15 points) - based on length and detail
+    const proposalLength = application.proposal_text?.length || 0;
+    if (proposalLength >= 300) score += 15;
+    else if (proposalLength >= 200) score += 10;
+    else if (proposalLength >= 100) score += 5;
+
+    // Response time (10 points) - how quickly they applied
+    const applicationTime = new Date(application.created_at);
+    const taskTime = new Date(task.created_at);
+    const hoursDiff = (applicationTime - taskTime) / (1000 * 60 * 60);
+    if (hoursDiff <= 1) score += 10;
+    else if (hoursDiff <= 6) score += 7;
+    else if (hoursDiff <= 24) score += 4;
+
+    return Math.min(Math.round(score), maxScore);
+  };
+
+  const getScoreColor = (score) => {
+    if (score >= 80) return 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800';
+    if (score >= 60) return 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800';
+    if (score >= 40) return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800';
+    return 'text-orange-600 bg-orange-50 dark:bg-orange-900/20 dark:text-orange-400 border-orange-200 dark:border-orange-800';
+  };
+
+  const getScoreLabel = (score) => {
+    if (score >= 80) return 'Excellent Match';
+    if (score >= 60) return 'Good Match';
+    if (score >= 40) return 'Fair Match';
+    return 'Low Match';
+  };
+
+  const handleAcceptApplication = (application) => {
+    setSelectedApplication(application);
+    setShowAcceptModal(true);
+  };
+
+  const handleAcceptConfirm = async () => {
+    try {
+      setAccepting(true);
+      await taskService.acceptApplication(selectedApplication.id);
+      toast.success('Application accepted successfully!');
+      setShowAcceptModal(false);
+      setSelectedApplication(null);
+      fetchTask();
+      fetchApplications();
+    } catch (error) {
+      toast.error('Failed to accept application');
+    } finally {
+      setAccepting(false);
+    }
+  };
+
+  const handleRejectApplication = (application) => {
+    setSelectedApplication(application);
+    setShowRejectModal(true);
+  };
+
+  const handleRejectConfirm = async () => {
+    try {
+      setRejecting(true);
+      await taskService.rejectApplication(selectedApplication.id);
+      toast.success('Application rejected');
+      setShowRejectModal(false);
+      setSelectedApplication(null);
+      fetchApplications();
+    } catch (error) {
+      toast.error('Failed to reject application');
+    } finally {
+      setRejecting(false);
     }
   };
 
@@ -191,15 +317,12 @@ const TaskDetail = () => {
                     </Link>
                     <button
                       onClick={() => setShowCancelModal(true)}
-                      className="group relative inline-flex items-center px-6 py-2.5 bg-white/90 backdrop-blur-md border-2 border-red-200 text-red-600 rounded-lg font-semibold hover:bg-red-50/90 hover:border-red-400 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 overflow-hidden"
+                      className="inline-flex items-center px-6 py-2.5 bg-white border-2 border-red-500 text-red-600 rounded-lg font-semibold hover:bg-red-50 hover:border-red-600 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                     >
-                      {/* Animated gradient background on hover */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 to-red-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
-
-                      <svg className="w-4 h-4 mr-2 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
-                      <span className="relative z-10">Cancel Task</span>
+                      Cancel Task
                     </button>
                   </div>
                 )}
@@ -310,6 +433,176 @@ const TaskDetail = () => {
                     </div>
                   ))}
                 </div>
+              </Card>
+            )}
+
+            {/* Applications Section - Only visible to task owner */}
+            {isOwner && (
+              <Card className="dark:bg-gray-800 dark:border dark:border-gray-700">
+                <div className="border-b border-gray-200 dark:border-gray-700 pb-4 mb-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                        Applications ({applications.length})
+                      </h2>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        Review and manage freelancer applications
+                      </p>
+                    </div>
+                    {applications.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <UserGroupIcon className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {applications.filter(a => a.status === 'PENDING').length} pending
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {loadingApplications ? (
+                  <div className="text-center py-12">
+                    <Loading />
+                  </div>
+                ) : applications.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <UserGroupIcon className="w-10 h-10 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                      No Applications Yet
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400">
+                      Freelancers will see your task and can apply to work with you.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {applications
+                      .sort((a, b) => calculateSuitabilityScore(b) - calculateSuitabilityScore(a))
+                      .map((application) => {
+                        const suitabilityScore = calculateSuitabilityScore(application);
+                        const scoreColor = getScoreColor(suitabilityScore);
+                        const scoreLabel = getScoreLabel(suitabilityScore);
+
+                        return (
+                          <div
+                            key={application.id}
+                            className="border border-gray-200 dark:border-gray-700 rounded-xl p-6 hover:shadow-lg transition-all bg-white dark:bg-gray-750"
+                          >
+                            {/* Header with Freelancer Info and Score */}
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex items-start gap-4 flex-1">
+                                <Avatar user={application.freelancer} size="lg" />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3 mb-1">
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                                      {application.freelancer?.username}
+                                    </h3>
+                                    <Badge variant={
+                                      application.status === 'ACCEPTED' ? 'success' :
+                                      application.status === 'REJECTED' ? 'danger' : 'warning'
+                                    }>
+                                      {application.status}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-4 text-sm">
+                                    <div className="flex items-center">
+                                      <span className="text-yellow-500">★</span>
+                                      <span className="ml-1 font-semibold text-gray-900 dark:text-white">
+                                        {application.freelancer?.average_rating || 0}
+                                      </span>
+                                      <span className="text-gray-500 dark:text-gray-400 ml-1">
+                                        ({application.freelancer?.total_reviews || 0})
+                                      </span>
+                                    </div>
+                                    <span className="text-gray-300 dark:text-gray-600">|</span>
+                                    <span className="text-gray-600 dark:text-gray-400">
+                                      {application.freelancer?.tasks_completed || 0} tasks completed
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Suitability Score */}
+                              <div className={`px-4 py-3 rounded-xl border ${scoreColor} text-center min-w-[140px]`}>
+                                <div className="text-3xl font-bold mb-1">{suitabilityScore}%</div>
+                                <div className="text-xs font-semibold uppercase tracking-wide">
+                                  {scoreLabel}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Proposal */}
+                            <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">
+                                Proposal
+                              </p>
+                              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                                {application.proposal_text || 'No proposal provided'}
+                              </p>
+                            </div>
+
+                            {/* Details Grid */}
+                            <div className="grid grid-cols-3 gap-4 mb-4">
+                              <div className="text-center p-3 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg">
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Offered Price</p>
+                                <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                                  {formatCurrency(application.offered_price)}
+                                </p>
+                              </div>
+                              <div className="text-center p-3 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg">
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Est. Time</p>
+                                <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                                  {application.estimated_time || 'Not specified'}
+                                </p>
+                              </div>
+                              <div className="text-center p-3 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg">
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Applied</p>
+                                <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                                  {formatRelativeTime(application.created_at)}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex gap-3">
+                              <Link
+                                to={`/messages?user=${application.freelancer?.id}`}
+                                className="flex-1"
+                              >
+                                <button className="w-full px-4 py-3 bg-white dark:bg-gray-800 border-2 border-primary-600 dark:border-primary-500 text-primary-600 dark:text-primary-400 rounded-lg font-semibold hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all flex items-center justify-center gap-2">
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                  </svg>
+                                  Contact
+                                </button>
+                              </Link>
+
+                              {application.status === 'PENDING' && (
+                                <>
+                                  <button
+                                    onClick={() => handleAcceptApplication(application)}
+                                    className="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg font-semibold hover:from-green-700 hover:to-emerald-700 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                                  >
+                                    <CheckCircleIcon className="w-5 h-5" />
+                                    Accept
+                                  </button>
+                                  <button
+                                    onClick={() => handleRejectApplication(application)}
+                                    className="px-4 py-3 bg-white dark:bg-gray-800 border-2 border-red-500 dark:border-red-600 text-red-600 dark:text-red-500 rounded-lg font-semibold hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex items-center justify-center gap-2"
+                                  >
+                                    <XMarkIcon className="w-5 h-5" />
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
               </Card>
             )}
           </div>
@@ -673,6 +966,178 @@ const TaskDetail = () => {
                       </span>
                     ) : (
                       'Yes, Cancel Task'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Accept Application Confirmation Modal */}
+        {showAcceptModal && selectedApplication && (
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !accepting) {
+                setShowAcceptModal(false);
+              }
+            }}
+          >
+            <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full shadow-2xl transform transition-all animate-scaleIn">
+              <div className="p-8">
+                {/* Success Icon */}
+                <div className="flex justify-center mb-6">
+                  <div className="relative">
+                    <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-emerald-200 dark:from-green-900/40 dark:to-emerald-900/40 rounded-full flex items-center justify-center shadow-lg">
+                      <CheckCircleIcon className="w-12 h-12 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-20"></div>
+                  </div>
+                </div>
+
+                {/* Title */}
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-3">
+                  Accept This Application?
+                </h2>
+
+                {/* Description */}
+                <p className="text-gray-600 dark:text-gray-300 text-center mb-6 leading-relaxed">
+                  This will assign the task to this freelancer and notify them to begin work.
+                </p>
+
+                {/* Freelancer Info Card */}
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-750 rounded-xl p-5 mb-6 border-2 border-gray-200 dark:border-gray-600">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Avatar user={selectedApplication.freelancer} size="md" />
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-900 dark:text-white">
+                        {selectedApplication.freelancer?.username}
+                      </p>
+                      <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                        <span className="text-yellow-500">★</span>
+                        <span className="ml-1 font-semibold">
+                          {selectedApplication.freelancer?.average_rating || 0}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="pt-3 border-t border-gray-200 dark:border-gray-600">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Offered Price:</span>
+                      <span className="font-bold text-green-600 dark:text-green-400">
+                        {formatCurrency(selectedApplication.offered_price)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => setShowAcceptModal(false)}
+                    disabled={accepting}
+                    className="flex-1 px-6 py-3.5 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAcceptConfirm}
+                    disabled={accepting}
+                    className="flex-1 px-6 py-3.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+                  >
+                    {accepting ? (
+                      <span className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Accepting...
+                      </span>
+                    ) : (
+                      'Yes, Accept Application'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Reject Application Confirmation Modal */}
+        {showRejectModal && selectedApplication && (
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !rejecting) {
+                setShowRejectModal(false);
+              }
+            }}
+          >
+            <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full shadow-2xl transform transition-all animate-scaleIn">
+              <div className="p-8">
+                {/* Warning Icon */}
+                <div className="flex justify-center mb-6">
+                  <div className="relative">
+                    <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-red-200 dark:from-red-900/40 dark:to-red-900/40 rounded-full flex items-center justify-center shadow-lg">
+                      <XMarkIcon className="w-12 h-12 text-red-600 dark:text-red-400" />
+                    </div>
+                    <div className="absolute inset-0 bg-red-400 rounded-full animate-ping opacity-20"></div>
+                  </div>
+                </div>
+
+                {/* Title */}
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-3">
+                  Reject This Application?
+                </h2>
+
+                {/* Description */}
+                <p className="text-gray-600 dark:text-gray-300 text-center mb-6 leading-relaxed">
+                  This will decline the application and notify the freelancer.
+                </p>
+
+                {/* Freelancer Info Card */}
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-750 rounded-xl p-5 mb-6 border-2 border-gray-200 dark:border-gray-600">
+                  <div className="flex items-center gap-3">
+                    <Avatar user={selectedApplication.freelancer} size="md" />
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-900 dark:text-white">
+                        {selectedApplication.freelancer?.username}
+                      </p>
+                      <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                        <span className="text-yellow-500">★</span>
+                        <span className="ml-1 font-semibold">
+                          {selectedApplication.freelancer?.average_rating || 0}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => setShowRejectModal(false)}
+                    disabled={rejecting}
+                    className="flex-1 px-6 py-3.5 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleRejectConfirm}
+                    disabled={rejecting}
+                    className="flex-1 px-6 py-3.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-semibold hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+                  >
+                    {rejecting ? (
+                      <span className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Rejecting...
+                      </span>
+                    ) : (
+                      'Yes, Reject Application'
                     )}
                   </button>
                 </div>

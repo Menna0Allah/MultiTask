@@ -30,7 +30,8 @@ class CategoryListView(generics.ListAPIView):
     queryset = Category.objects.filter(is_active=True)
     serializer_class = CategorySerializer
     permission_classes = [permissions.AllowAny]
-    
+    pagination_class = None  # Disable pagination - return all categories
+
     @extend_schema(
         summary="List categories",
         description="Get list of all active task categories"

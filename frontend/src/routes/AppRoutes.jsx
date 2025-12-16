@@ -17,6 +17,7 @@ import TaskEdit from '../pages/tasks/TaskEdit';
 import MyTasks from '../pages/tasks/MyTasks';
 import Profile from '../pages/profile/Profile';
 import Messages from '../pages/messages/Messages';
+import Notifications from '../pages/notifications/Notifications';
 import HowItWorks from '../pages/HowItWorks';
 import ForYou from '../pages/ForYou';
 import NotFound from '../pages/NotFound';
@@ -102,6 +103,15 @@ const AppRoutes = () => {
         element={
           <PrivateRoute>
             <Layout><Messages /></Layout>
+          </PrivateRoute>
+        }
+      />
+
+      <Route
+        path="/notifications"
+        element={
+          <PrivateRoute>
+            <Layout><Notifications /></Layout>
           </PrivateRoute>
         }
       />

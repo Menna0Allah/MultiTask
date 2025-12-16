@@ -72,9 +72,9 @@ class User(AbstractUser):
     
     @property
     def is_client(self):
-        return self.user_type in ['client', 'both']
+        return self.user_type.lower() in ['client', 'both']
 
     @property
     def is_freelancer(self):
-        return self.user_type in ['freelancer', 'both']
+        return self.user_type.lower() in ['freelancer', 'both']
         

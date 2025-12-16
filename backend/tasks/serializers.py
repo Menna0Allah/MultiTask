@@ -41,16 +41,26 @@ class TaskListSerializer(serializers.ModelSerializer):
     """Serializer for task list view (minimal data)"""
     client = PublicUserSerializer(read_only=True)
     category = CategorySerializer(read_only=True)
-    
+    required_skills = serializers.SerializerMethodField()
+
     class Meta:
         model = Task
         fields = [
             'id', 'title', 'description', 'client', 'category',
             'task_type', 'listing_type', 'budget', 'is_negotiable', 'location', 'city',
             'is_remote', 'deadline', 'status', 'views_count',
-            'applications_count', 'created_at'
+            'applications_count', 'required_skills', 'created_at'
         ]
         read_only_fields = fields
+
+    def get_required_skills(self, obj):
+        """Get required skills as list of IDs and names"""
+        try:
+            from recommendations.serializers import SkillSerializer
+            skills = obj.required_skills.all()
+            return SkillSerializer(skills, many=True).data
+        except:
+            return []
 
 
 class TaskDetailSerializer(serializers.ModelSerializer):
@@ -61,7 +71,8 @@ class TaskDetailSerializer(serializers.ModelSerializer):
     images = TaskImageSerializer(many=True, read_only=True)
     is_applied = serializers.SerializerMethodField()
     can_apply = serializers.SerializerMethodField()
-    
+    required_skills = serializers.SerializerMethodField()
+
     class Meta:
         model = Task
         fields = [
@@ -69,10 +80,19 @@ class TaskDetailSerializer(serializers.ModelSerializer):
             'task_type', 'listing_type', 'budget', 'is_negotiable', 'location', 'city',
             'is_remote', 'deadline', 'estimated_duration', 'status',
             'assigned_to', 'image', 'images', 'views_count',
-            'applications_count', 'is_applied', 'can_apply',
+            'applications_count', 'required_skills', 'is_applied', 'can_apply',
             'created_at', 'updated_at', 'completed_at'
         ]
         read_only_fields = fields
+
+    def get_required_skills(self, obj):
+        """Get required skills as list of IDs and names"""
+        try:
+            from recommendations.serializers import SkillSerializer
+            skills = obj.required_skills.all()
+            return SkillSerializer(skills, many=True).data
+        except:
+            return []
     
     def get_is_applied(self, obj):
         """Check if current user already applied"""
@@ -114,13 +134,25 @@ class TaskDetailSerializer(serializers.ModelSerializer):
 class TaskCreateUpdateSerializer(serializers.ModelSerializer):
     """Serializer for creating/updating tasks"""
     images = TaskImageSerializer(many=True, required=False)
-    
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Import here to avoid circular imports and set queryset dynamically
+        from recommendations.models import Skill
+        self.fields['required_skills'] = serializers.PrimaryKeyRelatedField(
+            many=True,
+            queryset=Skill.objects.filter(is_active=True),
+            required=False,
+            help_text="List of skill IDs required for this task"
+        )
+
     class Meta:
         model = Task
         fields = [
             'title', 'description', 'category', 'task_type',
             'budget', 'is_negotiable', 'location', 'city',
-            'is_remote', 'deadline', 'estimated_duration', 'image', 'images'
+            'is_remote', 'deadline', 'estimated_duration', 'image', 'images',
+            'required_skills'
         ]
     
     def validate_budget(self, value):
@@ -152,14 +184,19 @@ class TaskCreateUpdateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """Create task with client from request"""
         images_data = validated_data.pop('images', [])
+        required_skills = validated_data.pop('required_skills', [])
         validated_data['client'] = self.context['request'].user
-        
+
         task = Task.objects.create(**validated_data)
-        
+
+        # Set required skills (many-to-many)
+        if required_skills:
+            task.required_skills.set(required_skills)
+
         # Create images
         for image_data in images_data:
             TaskImage.objects.create(task=task, **image_data)
-        
+
         return task
 
 

@@ -6,10 +6,40 @@ import google.generativeai as genai
 from django.conf import settings
 import json
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 
 logger = logging.getLogger('chatbot')
 
+
+# --- Intent Constants (Step 1.1) ---
+INTENT_HELP = "HELP"
+INTENT_NAVIGATION = "NAVIGATION"
+INTENT_RECOMMEND_TASKS = "RECOMMEND_TASKS"
+INTENT_CREATE_TASK = "CREATE_TASK"
+INTENT_GENERAL_CHAT = "GENERAL_CHAT"
+
+TASK_FIELD_ORDER = [
+    "title",
+    "description",
+    "category",
+    "budget",
+    "location",
+]
+
+TASK_FIELD_PROMPTS = {
+    "title": "What is the task title?",
+    "description": "Please describe the task requirements in detail.",
+    "category": "What category does this task belong to?",
+    "budget": "What is your budget in EGP?",
+    "location": "Is this task remote or tied to a specific location?",
+}
+
+ALLOWED_ACTIONS = {
+    "NAVIGATE": {
+        "required_fields": ["path"],
+        "optional_fields": ["label"]
+    }
+}
 
 class ChatbotService:
     """
@@ -115,15 +145,7 @@ Remember: Your goal is to make users successful on the platform. Be helpful, acc
         context: Optional[Dict] = None
     ) -> str:
         """
-        Get chatbot response
-        
-        Args:
-            user_message: User's message
-            conversation_history: List of previous messages
-            context: Additional context (user info, current page, etc.)
-        
-        Returns:
-            Bot's response string
+        Get chatbot response (fallback AI generation)
         """
         try:
             # Build full prompt
@@ -175,16 +197,142 @@ Remember: Your goal is to make users successful on the platform. Be helpful, acc
         prompt_parts.append("Assistant:")
         
         return ''.join(prompt_parts)
+
+    # --- New: Hybrid Intent Router (Step 1.2) ---
+    def route_intent(self, user_message: str) -> str:
+        """
+        Single source of truth for intent routing.
+        AI may assist later, but backend decides final intent.
+        """
+        text = user_message.lower()
+
+        if any(x in text for x in ["recommend", "for you", "matched", "find tasks", "suggest tasks"]):
+            return INTENT_RECOMMEND_TASKS
+
+        if any(x in text for x in ["create task", "post task", "add task", "new task"]):
+            return INTENT_CREATE_TASK
+
+        if any(x in text for x in ["go to", "open", "navigate", "take me to"]):
+            return INTENT_NAVIGATION
+
+        if any(x in text for x in ["help", "how", "what can you do"]):
+            return INTENT_HELP
+
+        return INTENT_GENERAL_CHAT
+
+    # --- New: Hybrid Command Dispatcher (Step 1.3) ---
+    def handle_intent(self, *, intent: str, user, session, user_message: str) -> Tuple[str, Optional[Dict]]:
+        """
+        Execute backend logic based on resolved intent.
+        Returns: (reply_text, action_dict | None)
+        """
+
+        if session.session_type == "CREATE_TASK":
+            context = session.context_data or {}
+            pending_fields = context.get("pending_fields", [])
+            data = context.get("data", {})
+
+            if not pending_fields:
+                return "Task creation is already completed.", None
+
+            current_field = pending_fields[0]
+
+            is_valid, result = self.validate_task_field(current_field, user_message)
+
+            if not is_valid:
+                return result, None
+
+            # Save validated value
+            data[current_field] = result
+            pending_fields.pop(0)
+
+            session.context_data = {
+                "flow": "CREATE_TASK",
+                "data": data,
+                "pending_fields": pending_fields
+            }
+            session.save(update_fields=["context_data"])
+
+            # If more fields remain → ask next question
+            if pending_fields:
+                next_field = pending_fields[0]
+                return TASK_FIELD_PROMPTS[next_field], None
+
+            # All fields collected → finalize
+            return self.finalize_task_creation(user, session), {
+                "type": "NAVIGATE",
+                "path": "/my-tasks",
+                "label": "View Your Tasks"
+            }
+
+        # --- RECOMMEND TASKS ---
+        if intent == INTENT_RECOMMEND_TASKS:
+            from recommendations.services import get_recommendation_service
+
+            service = get_recommendation_service()
+
+            # ✅ HARD GUARD — REQUIRED
+            if not hasattr(user, "user_type") or user.user_type not in ["freelancer", "both"]:
+                return (
+                    "Task recommendations are available for freelancers. "
+                    "You can create a task or browse freelancers instead.",
+                    None
+                )
+
+            tasks = service.recommend_tasks_for_freelancer(user, limit=5)
+
+
+            if not tasks:
+                return (
+                    "I couldn't find suitable tasks right now. Try updating your skills or profile.",
+                    None
+                )
+
+            return (
+                "I found tasks that match your skills and preferences.",
+                {
+                    "type": "NAVIGATE",
+                    "path": "/recommendations",
+                    "label": "View Recommended Tasks"
+                }
+            )
+
+        # --- CREATE TASK (Conversation starts here) ---
+        if intent == INTENT_CREATE_TASK:
+            session.session_type = "CREATE_TASK"
+            session.context_data = {
+                "flow": "CREATE_TASK",
+                "data": {},
+                "pending_fields": ["title", "description", "category", "budget", "location"]
+            }
+            session.save(update_fields=["session_type", "context_data"])
+
+            return (
+                "Sure. Let's create your task step by step.\n\nWhat is the task title?",
+                None
+            )
+
+        # --- NAVIGATION ---
+        if intent == INTENT_NAVIGATION:
+            return (
+                "Where would you like to go?",
+                None
+            )
+
+        # --- HELP ---
+        if intent == INTENT_HELP:
+            return (
+                "I can help you find tasks, create task posts, navigate the platform, and give personalized recommendations.",
+                None
+            )
+
+        # --- FALLBACK: General Chat (AI-generated) ---
+        reply = self.get_response(user_message, context={"user_type": user.user_type if hasattr(user, 'user_type') else None})
+        return reply, None
     
     def extract_task_info(self, conversation: str) -> Optional[Dict]:
         """
         Extract task information from conversation
-        
-        Args:
-            conversation: Full conversation text
-        
-        Returns:
-            Dictionary with extracted task info or None
         """
         try:
             prompt = f"""
@@ -221,12 +369,6 @@ Return ONLY the JSON, no other text.
     def suggest_category(self, task_description: str) -> str:
         """
         Suggest task category based on description
-        
-        Args:
-            task_description: Task description
-        
-        Returns:
-            Category name
         """
         try:
             categories = [
@@ -264,17 +406,10 @@ Return ONLY the category name, nothing else.
     
     def analyze_intent(self, message: str) -> str:
         """
-        Detect user intent
-        
-        Args:
-            message: User message
-        
-        Returns:
-            Intent string
+        Detect user intent (legacy — kept for compatibility)
         """
         message_lower = message.lower()
         
-        # Simple keyword-based intent detection
         if any(word in message_lower for word in ['create', 'post', 'add', 'new task']):
             return 'create_task'
         elif any(word in message_lower for word in ['find', 'search', 'look for', 'browse']):
@@ -285,6 +420,83 @@ Return ONLY the category name, nothing else.
             return 'help'
         else:
             return 'general'
+        
+    def validate_task_field(self, field: str, value: str):
+        if field == "title":
+            if len(value) < 5:
+                return False, "Title must be at least 5 characters."
+            return True, value.strip()
+
+        if field == "description":
+            if len(value) < 20:
+                return False, "Description must be more detailed (at least 20 characters)."
+            return True, value.strip()
+
+        if field == "category":
+            return True, value.strip()
+
+        if field == "budget":
+            try:
+                budget = float(value)
+                if budget <= 0:
+                    raise ValueError
+                return True, budget
+            except ValueError:
+                return False, "Budget must be a valid number in EGP."
+
+        if field == "location":
+            return True, value.strip()
+
+        return False, "Invalid field."
+    
+    def finalize_task_creation(self, user, session):
+        from tasks.models import Task
+
+        data = session.context_data.get("data", {})
+
+        task = Task.objects.create(
+            client=user,
+            title=data["title"],
+            description=data["description"],
+            category=data["category"],
+            budget=data["budget"],
+            location=data["location"],
+            status="OPEN"
+        )
+
+        # Reset session
+        session.session_type = "GENERAL"
+        session.context_data = {}
+        session.save(update_fields=["session_type", "context_data"])
+
+        return (
+            f"Your task **{task.title}** has been created successfully. "
+            "Freelancers can now see and apply to it."
+        )
+    
+    def validate_action(self, action: dict) -> dict | None:
+        """
+        Ensure action is backend-approved and well-formed.
+        """
+        if not action or "type" not in action:
+            return None
+
+        action_type = action.get("type")
+
+        if action_type not in ALLOWED_ACTIONS:
+            return None
+
+        schema = ALLOWED_ACTIONS[action_type]
+        required = schema["required_fields"]
+
+        for field in required:
+            if field not in action:
+                return None
+
+        return action
+
+
+
 
 
 # Singleton instance

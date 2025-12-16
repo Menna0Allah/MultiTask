@@ -22,7 +22,8 @@ const Categories = () => {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const response = await api.get(API_ENDPOINTS.CATEGORIES);
+      // Fetch all categories by setting a large page_size
+      const response = await api.get(`${API_ENDPOINTS.CATEGORIES}?page_size=100`);
       console.log('Categories API response:', response.data);
       // Handle both array and paginated response
       const data = Array.isArray(response.data) ? response.data : response.data.results || [];
@@ -95,7 +96,9 @@ const Categories = () => {
           <div className="w-px h-12 bg-gray-300 dark:bg-gray-700"></div>
           <div>
             <div className="text-4xl font-bold text-gray-900 dark:text-white mb-1">
-              {filteredCategories.length}
+              {searchTerm
+                ? filteredCategories.length
+                : categories.filter(cat => cat.tasks_count > 0).length}
             </div>
             <div className="text-sm text-gray-600 dark:text-gray-400">
               {searchTerm ? 'Search Results' : 'Active Categories'}

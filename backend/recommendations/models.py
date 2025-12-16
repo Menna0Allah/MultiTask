@@ -1,6 +1,8 @@
 from django.db import models
 from django.conf import settings
 
+# Import skill models
+from .skill_model import Skill, UserSkill
 
 class UserPreference(models.Model):
     """
@@ -11,14 +13,39 @@ class UserPreference(models.Model):
         on_delete=models.CASCADE,
         related_name='preferences'
     )
-    
-    # Preferred categories (stored as comma-separated IDs)
+
+    # Onboarding
+    onboarding_completed = models.BooleanField(
+        default=False,
+        help_text="Whether user has completed the onboarding survey"
+    )
+    onboarding_completed_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When the user completed onboarding"
+    )
+
+    # Interests (from onboarding survey)
+    interests = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="Array of interest/category IDs the user is interested in"
+    )
+
+    # Preferred categories (stored as comma-separated IDs) - LEGACY
     preferred_categories = models.TextField(
         blank=True,
         null=True,
-        help_text="Comma-separated category IDs"
+        help_text="Comma-separated category IDs (legacy, use interests instead)"
     )
-    
+
+    # Task type preferences
+    preferred_task_types = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="Array of preferred task types (PHYSICAL, DIGITAL, HYBRID)"
+    )
+
     # Budget preferences
     min_budget = models.DecimalField(
         max_digits=10,
@@ -32,7 +59,7 @@ class UserPreference(models.Model):
         null=True,
         blank=True
     )
-    
+
     # Location preferences
     preferred_location = models.CharField(max_length=200, blank=True, null=True)
     max_distance = models.IntegerField(
@@ -40,15 +67,15 @@ class UserPreference(models.Model):
         blank=True,
         help_text="Maximum distance in km"
     )
-    
+
     # Work type preferences
     prefer_remote = models.BooleanField(default=False)
     prefer_physical = models.BooleanField(default=True)
-    
+
     # Notification preferences
     email_notifications = models.BooleanField(default=True)
     push_notifications = models.BooleanField(default=True)
-    
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -126,4 +153,4 @@ class RecommendationLog(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.recommendation_type} for {self.user.username} at {self.created_at}"
+        return f"{self.recommendation_type} for {self.user.username} at {self.created_at}" 

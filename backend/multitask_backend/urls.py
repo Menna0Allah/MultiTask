@@ -14,6 +14,7 @@ urlpatterns = [
     path('api/recommendations/', include('recommendations.urls')),
     path('api/chatbot/', include('chatbot.urls')),
     path('api/messaging/', include('messaging.urls')),
+    path('api/notifications/', include('notifications.urls')),
 
         # API Documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

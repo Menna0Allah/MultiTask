@@ -8,6 +8,18 @@ const recommendationService = {
     return response.data;
   },
 
+  // Get service offering suggestions (what services YOU could offer)
+  getServiceOfferings: async (params = {}) => {
+    const response = await api.get('/recommendations/service-offerings/', { params });
+    return response.data;
+  },
+
+  // Discover freelancers (for clients) - NEW
+  discoverFreelancers: async (params = {}) => {
+    const response = await api.get('/recommendations/freelancers/', { params });
+    return response.data;
+  },
+
   // Get recommended freelancers for a specific task (for clients)
   getRecommendedFreelancers: async (taskId) => {
     const response = await api.get(API_ENDPOINTS.RECOMMENDED_FREELANCERS(taskId));

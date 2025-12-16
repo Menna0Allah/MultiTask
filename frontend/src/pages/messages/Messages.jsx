@@ -95,9 +95,19 @@ const Messages = () => {
       setLoading(true);
       const response = await messagingService.getConversations();
 
-      // Handle paginated response
+      // Handle paginated response and ensure unique conversations
       const conversationList = Array.isArray(response) ? response : (response.results || []);
-      setConversations(conversationList);
+
+      // Remove duplicates based on ID
+      const uniqueConversations = conversationList.reduce((acc, current) => {
+        const exists = acc.find(item => item.id === current.id);
+        if (!exists) {
+          acc.push(current);
+        }
+        return acc;
+      }, []);
+
+      setConversations(uniqueConversations);
 
       const userId = searchParams.get('user');
 
@@ -133,8 +143,11 @@ const Messages = () => {
         initialMessage
       );
 
-      // Add to conversations list
-      setConversations(prev => [conversation, ...prev]);
+      // Add to conversations list, ensuring no duplicates
+      setConversations(prev => {
+        const filtered = prev.filter(c => c.id !== conversation.id);
+        return [conversation, ...filtered];
+      });
       setSelectedConversation(conversation);
 
       // Clear the user query param

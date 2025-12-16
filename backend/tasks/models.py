@@ -35,7 +35,6 @@ class Task(models.Model):
     """
     Main Task model - posted by clients, applied by freelancers
     """
-    
     # Status choices
     STATUS_CHOICES = [
         ('OPEN', 'Open'),
@@ -112,9 +111,17 @@ class Task(models.Model):
         related_name='assigned_tasks'
     )
     
+    # Required skills (structured data - PRIMARY for matching)
+    required_skills = models.ManyToManyField(
+        'recommendations.Skill',
+        blank=True,
+        related_name='tasks_requiring',
+        help_text="Structured skills required for this task"
+    )
+
     # Attachments
     image = models.ImageField(upload_to='task_images/', null=True, blank=True)
-    
+
     # Engagement metrics
     views_count = models.IntegerField(default=0)
     applications_count = models.IntegerField(default=0)

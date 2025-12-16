@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Avatar from '../common/Avatar';
 import ThemeToggle from '../common/ThemeToggle';
+import notificationService from '../../services/notificationService';
 import {
   Bars3Icon,
   XMarkIcon,
@@ -17,44 +18,92 @@ const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const wsRef = useRef(null);
 
   const handleLogout = async () => {
+    // Close WebSocket connection
+    if (wsRef.current) {
+      wsRef.current.close();
+    }
     await logout();
     navigate('/login');
   };
 
-  // Mock notifications - Replace with real API data later
-  const notifications = [
-    {
-      id: 1,
-      type: 'application',
-      title: 'New Application',
-      message: 'John Doe applied to your task "Website Development"',
-      time: '5 min ago',
-      read: false,
-      link: '/my-tasks',
-    },
-    {
-      id: 2,
-      type: 'message',
-      title: 'New Message',
-      message: 'You have a new message from Sarah Smith',
-      time: '1 hour ago',
-      read: false,
-      link: '/messages',
-    },
-    {
-      id: 3,
-      type: 'task',
-      title: 'Task Completed',
-      message: 'Your task "Logo Design" has been marked as completed',
-      time: '2 hours ago',
-      read: true,
-      link: '/my-tasks',
-    },
-  ];
+  // Fetch notifications and unread count
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchNotifications();
+      fetchUnreadCount();
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+      // Small delay to prevent React Strict Mode double-mount issues
+      const timer = setTimeout(() => {
+        connectWebSocket();
+      }, 100);
+
+      return () => {
+        clearTimeout(timer);
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          wsRef.current.close(1000, 'Component unmounting');
+        }
+      };
+    }
+  }, [isAuthenticated]);
+
+  const fetchNotifications = async () => {
+    try {
+      const data = await notificationService.getNotifications({ page_size: 5 });
+      setNotifications(data.results || data);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  const fetchUnreadCount = async () => {
+    try {
+      const count = await notificationService.getUnreadCount();
+      setUnreadCount(count);
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  };
+
+  const connectWebSocket = () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    try {
+      wsRef.current = notificationService.connectWebSocket(token, (data) => {
+        if (data.type === 'new_notification') {
+          // Add new notification to the list
+          setNotifications(prev => [data.notification, ...prev.slice(0, 4)]);
+          fetchUnreadCount();
+        } else if (data.type === 'unread_count') {
+          setUnreadCount(data.count);
+        }
+      });
+    } catch (error) {
+      console.error('Error connecting to notification WebSocket:', error);
+    }
+  };
+
+  const handleMarkAsRead = async (notificationId, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    try {
+      await notificationService.markAsRead(notificationId);
+      setNotifications(prev =>
+        prev.map(n =>
+          n.id === notificationId ? { ...n, is_read: true } : n
+        )
+      );
+      fetchUnreadCount();
+    } catch (error) {
+      console.error('Error marking as read:', error);
+    }
+  };
 
   return (
     <nav className="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-50 transition-colors duration-200">
@@ -79,7 +128,7 @@ const Navbar = () => {
             
             {isAuthenticated && (
               <>
-                {user?.is_freelancer && (
+                {(user?.is_freelancer || user?.is_client) && (
                   <Link to="/recommendations" className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium">
                     For You
                   </Link>
@@ -148,15 +197,20 @@ const Navbar = () => {
                             notifications.map((notification) => (
                               <Link
                                 key={notification.id}
-                                to={notification.link}
-                                onClick={() => setNotificationsOpen(false)}
+                                to={notification.link || '#'}
+                                onClick={() => {
+                                  if (!notification.is_read) {
+                                    notificationService.markAsRead(notification.id);
+                                  }
+                                  setNotificationsOpen(false);
+                                }}
                                 className={`block px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-0 ${
-                                  !notification.read ? 'bg-primary-50 dark:bg-primary-900/20' : ''
+                                  !notification.is_read ? 'bg-primary-50 dark:bg-primary-900/20' : ''
                                 }`}
                               >
                                 <div className="flex items-start space-x-3">
                                   <div className={`w-2 h-2 mt-2 rounded-full ${
-                                    !notification.read ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'
+                                    !notification.is_read ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'
                                   }`}></div>
                                   <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium text-gray-900 dark:text-white">
@@ -166,7 +220,7 @@ const Navbar = () => {
                                       {notification.message}
                                     </p>
                                     <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                                      {notification.time}
+                                      {notification.time_ago}
                                     </p>
                                   </div>
                                 </div>
@@ -248,13 +302,6 @@ const Navbar = () => {
                         >
                           My Tasks
                         </Link>
-                        <Link
-                          to="/settings"
-                          className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                          onClick={() => setProfileMenuOpen(false)}
-                        >
-                          Settings
-                        </Link>
                         <hr className="my-1 dark:border-gray-700" />
                         <button
                           onClick={() => {
@@ -315,7 +362,7 @@ const Navbar = () => {
 
             {isAuthenticated ? (
               <>
-                {user?.is_freelancer && (
+                {(user?.is_freelancer || user?.is_client) && (
                   <Link
                     to="/recommendations"
                     className="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"

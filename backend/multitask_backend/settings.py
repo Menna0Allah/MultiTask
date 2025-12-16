@@ -73,6 +73,9 @@ INSTALLED_APPS = [
     'recommendations.apps.RecommendationsConfig',
     'chatbot.apps.ChatbotConfig',
     'messaging.apps.MessagingConfig',
+    'notifications.apps.NotificationsConfig',
+
+    'django_extensions',
 ]
 
 
@@ -581,3 +584,4 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
 }
+

@@ -5,12 +5,10 @@ import json
 
 User = get_user_model()
 
-
 class ChatConsumer(AsyncJsonWebsocketConsumer):
     """
     WebSocket consumer for real-time chat
     """
-    
     async def connect(self):
         """Handle WebSocket connection"""
         self.user = self.scope['user']

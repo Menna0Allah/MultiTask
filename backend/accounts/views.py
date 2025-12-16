@@ -236,28 +236,91 @@ class ProfileView(generics.RetrieveUpdateAPIView):
     Get or update current user profile
     """
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_serializer_class(self):
         if self.request.method == 'GET':
             return UserDetailSerializer
         return UserUpdateSerializer
-    
+
     def get_object(self):
         return self.request.user
-    
+
     @extend_schema(
         summary="Get current user profile",
         description="Retrieve authenticated user's profile details"
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
-    
+
     @extend_schema(
         summary="Update current user profile",
         description="Update authenticated user's profile information"
     )
     def patch(self, request, *args, **kwargs):
-        return super().patch(request, *args, **kwargs)
+        # Store old skills to check if changed
+        old_skills = self.request.user.skills
+
+        # Update profile normally
+        response = super().patch(request, *args, **kwargs)
+
+        # If skills field was updated, sync with UserSkill model
+        if response.status_code == 200 and 'skills' in request.data:
+            new_skills = request.data.get('skills', '')
+
+            # Only update if skills actually changed
+            if new_skills != old_skills:
+                self._sync_user_skills(self.request.user, new_skills)
+
+        return response
+
+    def _sync_user_skills(self, user, skills_text):
+        """
+        Sync text skills field with UserSkill model
+        This ensures structured skills match the text skills for better recommendations
+        """
+        from recommendations.skill_model import Skill, UserSkill
+
+        # Parse skills from comma-separated text
+        skill_names = [s.strip().lower() for s in skills_text.split(',') if s.strip()]
+
+        # Clear existing UserSkill records
+        UserSkill.objects.filter(user=user).delete()
+
+        # Try to match text skills with database Skill objects
+        matched_skills = []
+        for skill_name in skill_names:
+            # Try exact match first
+            skill = Skill.objects.filter(
+                name__iexact=skill_name,
+                is_active=True
+            ).first()
+
+            if not skill:
+                # Try partial match (e.g., "python" matches "Python Programming")
+                skill = Skill.objects.filter(
+                    name__icontains=skill_name,
+                    is_active=True
+                ).first()
+
+            if skill:
+                # Create UserSkill record
+                UserSkill.objects.create(
+                    user=user,
+                    skill=skill,
+                    proficiency='intermediate'
+                )
+                matched_skills.append(skill.name)
+
+                # Update skill usage count
+                skill.usage_count += 1
+                skill.save(update_fields=['usage_count'])
+
+        # Log what was matched
+        import logging
+        logger = logging.getLogger('recommendations')
+        logger.info(f"Updated skills for {user.username}: {matched_skills}")
+
+        return matched_skills
 
 
 class ChangePasswordView(APIView):

@@ -1,7 +1,6 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import authService from '../services/authService';
 import toast from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
 
 const AuthContext = createContext(null);
 
@@ -11,16 +10,35 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    // Load user from localStorage on mount
-    const loadUser = () => {
+    // Load user from API on mount (not just localStorage)
+    const loadUser = async () => {
       try {
-        const currentUser = authService.getCurrentUser();
         const isAuth = authService.isAuthenticated();
-        
-        setUser(currentUser);
         setIsAuthenticated(isAuth);
+
+        if (isAuth) {
+          // Fetch fresh user data from API instead of localStorage
+          try {
+            const userData = await authService.getProfile();
+            setUser(userData);
+          } catch (error) {
+            console.error('Failed to fetch user profile:', error);
+            // Fallback to localStorage if API fails
+            const cachedUser = authService.getCurrentUser();
+            if (cachedUser) {
+              setUser(cachedUser);
+            } else {
+              // If both fail, clear auth
+              setIsAuthenticated(false);
+            }
+          }
+        } else {
+          setUser(null);
+        }
       } catch (error) {
         console.error('Failed to load user:', error);
+        setUser(null);
+        setIsAuthenticated(false);
       } finally {
         setLoading(false);
       }
@@ -95,7 +113,11 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (profileData) => {
     try {
       const userData = await authService.updateProfile(profileData);
-      setUser(userData);
+      // Merge with existing user data to preserve all fields
+      setUser(prevUser => ({
+        ...prevUser,
+        ...userData
+      }));
       toast.success('Profile updated successfully');
       return userData;
     } catch (error) {
