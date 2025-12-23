@@ -299,9 +299,15 @@ def complete_onboarding(request):
     Complete onboarding survey and save user preferences + skills
     Automatically clears recommendation cache
     """
+    # Debug logging
+    import logging
+    logger_debug = logging.getLogger(__name__)
+    logger_debug.info(f"Onboarding request data: {request.data}")
+
     serializer = OnboardingSerializer(data=request.data)
 
     if not serializer.is_valid():
+        logger_debug.error(f"Onboarding validation errors: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     # Use transaction to ensure atomic operation

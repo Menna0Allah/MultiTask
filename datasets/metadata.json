@@ -1,0 +1,35 @@
+{
+  "dataset_version": "1.0.0",
+  "generated_date": "2025-12-22T13:43:14.715842",
+  "statistics": {
+    "total_users": 550,
+    "total_skills": 169,
+    "total_user_skills": 1904,
+    "total_categories": 15,
+    "total_tasks": 1200,
+    "total_task_skills": 3532,
+    "total_proposals": 2500,
+    "total_reviews": 550,
+    "total_intents": 15,
+    "total_conversations": 6
+  },
+  "breakdown": {
+    "users_by_type": {
+      "client": 159,
+      "freelancer": 274,
+      "both": 117
+    },
+    "tasks_by_status": {
+      "OPEN": 364,
+      "IN_PROGRESS": 264,
+      "COMPLETED": 506,
+      "CANCELLED": 66
+    },
+    "proposals_by_status": {
+      "PENDING": 845,
+      "ACCEPTED": 1340,
+      "REJECTED": 315,
+      "WITHDRAWN": 0
+    }
+  }
+}

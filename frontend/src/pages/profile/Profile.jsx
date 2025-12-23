@@ -22,7 +22,6 @@ import {
   StarIcon,
   ChartBarIcon,
   ClockIcon,
-  CameraIcon,
   SparklesIcon,
   PencilIcon,
 } from '@heroicons/react/24/outline';
@@ -252,11 +251,8 @@ const Profile = () => {
             <Card padding={false} className="dark:bg-gray-800 dark:border dark:border-gray-700">
               {/* Profile Picture */}
               <div className="p-6 text-center border-b border-gray-200 dark:border-gray-700">
-                <div className="relative inline-block mb-4">
+                <div className="inline-block mb-4">
                   <Avatar user={user} size="2xl" className="ring-4 ring-white dark:ring-gray-800" />
-                  <button className="absolute bottom-0 right-0 w-10 h-10 bg-primary-600 hover:bg-primary-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all transform hover:scale-110">
-                    <CameraIcon className="w-5 h-5" />
-                  </button>
                 </div>
                 <h3 className="font-bold text-lg text-gray-900 dark:text-white">{user.username}</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{user.email}</p>

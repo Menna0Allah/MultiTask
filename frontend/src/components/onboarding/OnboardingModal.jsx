@@ -123,11 +123,29 @@ const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
       onClose();
     } catch (error) {
       console.error('Onboarding failed:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
       const errorData = error.response?.data;
-      const message = errorData?.interests?.[0] ||
-                     errorData?.skills?.[0] ||
-                     errorData?.detail ||
-                     'Failed to complete onboarding. Please try again.';
+
+      // Try to extract a meaningful error message
+      let message = 'Failed to complete onboarding. Please try again.';
+
+      if (errorData) {
+        // Check for field-specific errors
+        if (errorData.interests) {
+          message = Array.isArray(errorData.interests) ? errorData.interests[0] : errorData.interests;
+        } else if (errorData.skills) {
+          message = Array.isArray(errorData.skills) ? errorData.skills[0] : errorData.skills;
+        } else if (errorData.detail) {
+          message = errorData.detail;
+        } else if (errorData.non_field_errors) {
+          message = Array.isArray(errorData.non_field_errors) ? errorData.non_field_errors[0] : errorData.non_field_errors;
+        } else {
+          // Show the full error for debugging
+          message = JSON.stringify(errorData);
+        }
+      }
+
       toast.error(message);
     } finally {
       setLoading(false);
@@ -526,7 +544,7 @@ const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }

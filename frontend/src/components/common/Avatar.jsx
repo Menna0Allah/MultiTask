@@ -1,10 +1,10 @@
 import React from 'react';
-import { getAvatarUrl, getInitials } from '../../utils/helpers';
+import { getInitials } from '../../utils/helpers';
 
-const Avatar = ({ 
-  user, 
+const Avatar = ({
+  user,
   size = 'md',
-  className = '' 
+  className = ''
 }) => {
   const sizes = {
     xs: 'w-6 h-6 text-xs',
@@ -14,16 +14,37 @@ const Avatar = ({
     xl: 'w-16 h-16 text-xl',
     '2xl': 'w-24 h-24 text-2xl',
   };
-  
-  const avatarUrl = getAvatarUrl(user);
-  
+
+  // Get initials from user's full name or username
+  const initials = getInitials(user?.full_name || user?.username || 'User');
+
+  // Generate consistent color based on username
+  const getBackgroundColor = (username) => {
+    if (!username) return 'bg-primary-600';
+
+    const colors = [
+      'bg-blue-600',
+      'bg-purple-600',
+      'bg-pink-600',
+      'bg-red-600',
+      'bg-orange-600',
+      'bg-yellow-600',
+      'bg-green-600',
+      'bg-teal-600',
+      'bg-cyan-600',
+      'bg-indigo-600',
+    ];
+
+    // Use username to consistently pick a color
+    const hash = username.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[hash % colors.length];
+  };
+
+  const bgColor = getBackgroundColor(user?.username);
+
   return (
-    <div className={`${sizes[size]} rounded-full overflow-hidden flex items-center justify-center bg-primary-600 text-white font-semibold ${className}`}>
-      <img 
-        src={avatarUrl} 
-        alt={user?.username || 'User'} 
-        className="w-full h-full object-cover"
-      />
+    <div className={`${sizes[size]} rounded-full flex items-center justify-center ${bgColor} text-white font-semibold ${className}`}>
+      <span>{initials}</span>
     </div>
   );
 };

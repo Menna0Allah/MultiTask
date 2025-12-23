@@ -1147,6 +1147,95 @@ class ChatSession(models.Model):
 - Before hybrid: 100% AI calls = $50/month (1000 users)
 - After hybrid: 25% AI calls = $0/month (free tier sufficient)
 
+#### Chatbot Status & Health Monitoring
+
+**Status Endpoint**: `GET /api/chatbot/status/`
+
+Returns real-time chatbot system status:
+
+```json
+{
+  "status": "operational",
+  "mode": "ai",
+  "api_available": true,
+  "model": "gemini-2.5-flash",
+  "capabilities": {
+    "general_chat": true,
+    "task_recommendations": true,
+    "task_creation": true,
+    "navigation_help": true,
+    "intent_routing": true
+  },
+  "fallback_enabled": true
+}
+```
+
+**Mode Indicator**:
+- `"ai"`: Gemini API available and active
+- `"fallback"`: Using pattern-matching fallback mode
+
+**Fallback Mode Features**:
+
+When Gemini API is unavailable or encounters errors, the chatbot automatically switches to intelligent fallback mode:
+
+```python
+def _get_fallback_response(user_message: str, context: Optional[Dict] = None) -> str:
+    """
+    Intelligent pattern-matching fallback responses
+    """
+    text = user_message.lower()
+
+    # Greetings
+    if any(x in text for x in ["hello", "hi", "hey"]):
+        return "Hello! I'm your Multitask assistant. I can help you find tasks, navigate the platform, or answer questions."
+
+    # Navigation
+    if "profile" in text:
+        return "I can help you navigate to your profile page. Go to your user menu and click on 'Profile'."
+
+    # Task finding
+    if any(x in text for x in ["task", "find", "browse", "search"]):
+        return "You can browse available tasks by clicking on 'Browse Tasks' in the main navigation. Or check 'For You' for personalized AI recommendations!"
+
+    # Default
+    return "I'm here to help! I can assist you with finding tasks, navigating the platform, creating task posts, and answering questions about Multitask."
+```
+
+**Fallback Capabilities**:
+- ✅ Greetings and basic conversation
+- ✅ Navigation assistance
+- ✅ Platform feature explanations
+- ✅ Task finding guidance
+- ✅ Help requests
+- ✅ All structured intents (RECOMMEND_TASKS, CREATE_TASK, etc.) work normally
+
+**Automatic Fallback Triggers**:
+1. Gemini API key not configured in `.env`
+2. API initialization errors
+3. Runtime API errors (rate limits, network issues)
+4. Model generation failures
+
+**Logging**:
+```python
+# AI mode
+logger.info("Using Gemini AI mode")
+
+# Fallback mode
+logger.info("Using fallback mode (API unavailable)")
+logger.error(f"Gemini API error, falling back to pattern matching: {error}")
+```
+
+**Chat Response Includes Mode**:
+```json
+{
+  "session_id": 123,
+  "mode": "ai",
+  "messages": [...]
+}
+```
+
+This ensures the chatbot **never fails completely** - even without API access, users get helpful responses for common queries.
+
 ### 5.3 Semantic Search
 
 #### Implementation
@@ -3235,20 +3324,79 @@ pip install -r requirements.txt
 **Note**: Installing ML libraries (torch, transformers) may take 5-10 minutes
 
 #### Step 3: Create PostgreSQL Database
+
+**Method 1: Using PostgreSQL CLI (Recommended)**
+
 ```bash
-# Open PostgreSQL prompt
+# Open PostgreSQL prompt as postgres superuser
 psql -U postgres
 
 # Create database
 CREATE DATABASE multitask_db;
 
-# Create user (optional)
-CREATE USER multitask_user WITH PASSWORD 'your_password';
-GRANT ALL PRIVILEGES ON DATABASE multitask_db TO multitask_user;
+# Create dedicated user for the application
+CREATE USER multitask_db_user WITH PASSWORD 'your_secure_password';
+
+# Grant all privileges on the database
+GRANT ALL PRIVILEGES ON DATABASE multitask_db TO multitask_db_user;
+
+# Connect to the database
+\c multitask_db
+
+# Grant schema permissions (PostgreSQL 15+)
+GRANT ALL ON SCHEMA public TO multitask_db_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO multitask_db_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO multitask_db_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO multitask_db_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO multitask_db_user;
 
 # Exit
 \q
 ```
+
+**Method 2: Using pgAdmin (GUI)**
+
+1. Open pgAdmin and connect to your PostgreSQL server
+2. Right-click "Databases" → "Create" → "Database"
+3. Set name: `multitask_db`
+4. Owner: `postgres` (or create user first)
+5. Save
+
+To create user in pgAdmin:
+1. Right-click "Login/Group Roles" → "Create" → "Login/Group Role"
+2. General tab: Name = `multitask_db_user`
+3. Definition tab: Password = `your_secure_password`
+4. Privileges tab: Check "Can login"
+5. Save
+
+**Current Project Configuration**:
+```
+Database Name: multitask_db
+Database User: multitask_db_user
+Database Host: localhost
+Database Port: 5432 (default)
+```
+
+**Verify Database Creation**:
+```bash
+# List all databases
+psql -U postgres -c "\l"
+
+# Connect to the database
+psql -U multitask_db_user -d multitask_db
+
+# List tables (after migrations)
+\dt
+
+# Exit
+\q
+```
+
+**Troubleshooting**:
+- **"peer authentication failed"**: Edit `pg_hba.conf` and change `peer` to `md5` for local connections
+- **"password authentication failed"**: Verify user exists: `psql -U postgres -c "\du"`
+- **Permission denied on schema**: Run the schema grant commands above
+- **Connection refused**: Ensure PostgreSQL service is running: `sudo service postgresql status`
 
 #### Step 4: Configure Environment Variables
 ```bash
@@ -3267,8 +3415,8 @@ ALLOWED_HOST=localhost
 
 # Database
 DATABASE_NAME=multitask_db
-DATABASE_USER=postgres
-DATABASE_PASSWORD=your_password
+DATABASE_USER=multitask_db_user
+DATABASE_PASSWORD=your_secure_password
 DATABASE_HOST=localhost
 DATABASE_PORT=5432
 

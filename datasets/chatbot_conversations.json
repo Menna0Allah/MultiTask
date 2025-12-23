@@ -1,0 +1,128 @@
+[
+  {
+    "id": 1,
+    "title": "New User - Task Creation Help",
+    "user_type": "client",
+    "messages": [
+      {
+        "sender": "USER",
+        "message": "Hi, I'm new here. How do I hire someone?"
+      },
+      {
+        "sender": "BOT",
+        "message": "Welcome to MultiTasks! I'll guide you through hiring:\n\n1. Click 'Post a Task'\n2. Describe what you need\n3. Set your budget\n4. Review proposals from freelancers\n5. Choose the best fit\n\nWould you like help with any specific step?"
+      },
+      {
+        "sender": "USER",
+        "message": "Yes, what should I include in the task description?"
+      },
+      {
+        "sender": "BOT",
+        "message": "Great question! A good task description should include:\n\n✓ Clear project overview\n✓ Specific requirements\n✓ Expected deliverables\n✓ Timeline/deadline\n✓ Any reference materials\n✓ Budget range\n\nBe specific to attract qualified freelancers. Would you like to see an example?"
+      }
+    ],
+    "resolved": true,
+    "created_at": "2025-12-15T10:00:00Z"
+  },
+  {
+    "id": 2,
+    "title": "Freelancer - First Proposal Help",
+    "user_type": "freelancer",
+    "messages": [
+      {
+        "sender": "USER",
+        "message": "كيف أكتب عرض جيد؟"
+      },
+      {
+        "sender": "BOT",
+        "message": "عرض ناجح يجب أن يتضمن:\n\n1. ترحيب شخصي بالعميل\n2. فهمك للمشروع\n3. خبرتك ذات الصلة\n4. نماذج من أعمالك السابقة\n5. خطة العمل والتسليم\n6. السعر والوقت المتوقع\n\nهل تحتاج مساعدة في أي جزء معين؟"
+      },
+      {
+        "sender": "USER",
+        "message": "yes, how do I price my work?"
+      },
+      {
+        "sender": "BOT",
+        "message": "For pricing:\n\n1. Check similar completed tasks\n2. Calculate hours needed × your hourly rate\n3. Consider project complexity\n4. Factor in revisions\n5. Be competitive but fair\n\nEntry level: 500-2000 EGP\nIntermediate: 2000-8000 EGP\nExpert: 8000+ EGP\n\nDon't undervalue your skills!"
+      }
+    ],
+    "resolved": true,
+    "created_at": "2025-12-16T14:30:00Z"
+  },
+  {
+    "id": 3,
+    "title": "Payment Question",
+    "user_type": "freelancer",
+    "messages": [
+      {
+        "sender": "USER",
+        "message": "When will I get paid?"
+      },
+      {
+        "sender": "BOT",
+        "message": "Payment process:\n\n1. Client accepts your proposal → funds held in escrow\n2. You complete the work\n3. Client reviews and approves\n4. Payment released to you (usually within 24 hours)\n5. Withdraw to bank/mobile wallet\n\nYour payment is secure throughout! Any other questions?"
+      },
+      {
+        "sender": "USER",
+        "message": "What if client doesn't approve?"
+      },
+      {
+        "sender": "BOT",
+        "message": "If there's a disagreement:\n\n1. Discuss with client via messages\n2. Make reasonable revisions if needed\n3. If still unresolved, open a dispute\n4. Our team reviews within 24-48 hours\n5. Fair resolution based on evidence\n\nWe protect both parties. Keep all communication on platform for records!"
+      }
+    ],
+    "resolved": true,
+    "created_at": "2025-12-17T09:15:00Z"
+  },
+  {
+    "id": 4,
+    "title": "Skills and Profile Optimization",
+    "user_type": "freelancer",
+    "messages": [
+      {
+        "sender": "USER",
+        "message": "How can I get more clients?"
+      },
+      {
+        "sender": "BOT",
+        "message": "To attract more clients:\n\n1. Complete your profile 100%\n2. Add professional photo\n3. List all relevant skills\n4. Upload portfolio samples\n5. Get verified\n6. Respond quickly to messages\n7. Maintain high ratings\n\nProfiles with portfolios get 5x more responses!"
+      }
+    ],
+    "resolved": true,
+    "created_at": "2025-12-08T02:03:30"
+  },
+  {
+    "id": 5,
+    "title": "Category Selection Help",
+    "user_type": "client",
+    "messages": [
+      {
+        "sender": "USER",
+        "message": "What category should I choose for web development?"
+      },
+      {
+        "sender": "BOT",
+        "message": "For web development, choose 'Web Development' category. This includes:\n- Website design\n- Frontend/backend development\n- E-commerce sites\n- Web applications\n\nYou can also add specific skills like React, Django, WordPress in the requirements!"
+      }
+    ],
+    "resolved": true,
+    "created_at": "2025-12-18T18:47:44"
+  },
+  {
+    "id": 6,
+    "title": "Verification Benefits",
+    "user_type": "freelancer",
+    "messages": [
+      {
+        "sender": "USER",
+        "message": "Why should I verify my account?"
+      },
+      {
+        "sender": "BOT",
+        "message": "Verified accounts get:\n\n✓ Trust badge on profile\n✓ 3x more visibility\n✓ Higher ranking in search\n✓ Access to premium tasks\n✓ Faster payment processing\n\nIt only takes 5 minutes! Go to Settings > Verification to start."
+      }
+    ],
+    "resolved": true,
+    "created_at": "2025-12-09T06:43:32"
+  }
+]

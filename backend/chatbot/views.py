@@ -124,11 +124,12 @@ class ChatView(APIView):
         # ------------------------------------------------------------------
         # Save BOT message
         # ------------------------------------------------------------------
+        chatbot_status = chatbot.get_status()
         bot_message = ChatMessage.objects.create(
             session=session,
             sender='BOT',
             message=reply_text,
-            ai_model_used=settings.GEMINI_MODEL if intent == "GENERAL_CHAT" else None,
+            ai_model_used=settings.GEMINI_MODEL if (intent == "GENERAL_CHAT" and chatbot_status['api_available']) else None,
             response_time_ms=response_time_ms,
             detected_intent=intent,
             extracted_entities=session.context_data or {}
@@ -143,6 +144,7 @@ class ChatView(APIView):
         # ------------------------------------------------------------------
         return Response({
             'session_id': session.id,
+            'mode': chatbot_status['mode'],  # 'ai' or 'fallback'
             'messages': [
                 ChatMessageSerializer(user_message).data,
                 {
@@ -281,8 +283,23 @@ class RateMessageView(APIView):
 
 
 # ==============================================================================
-# STATISTICS
+# STATISTICS & STATUS
 # ==============================================================================
+
+@extend_schema(
+    summary="Chatbot status",
+    description="Get chatbot system status (AI availability, mode, capabilities)"
+)
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def chatbot_status(request):
+    """
+    Check chatbot health and mode (AI vs fallback)
+    """
+    chatbot = get_chatbot_service()
+    status_info = chatbot.get_status()
+    return Response(status_info)
+
 
 @extend_schema(
     summary="Chatbot statistics",

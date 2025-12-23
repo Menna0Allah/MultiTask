@@ -48,8 +48,19 @@ class ChatbotService:
     
     def __init__(self):
         """Initialize Gemini API"""
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        self.api_available = False
+        try:
+            if settings.GEMINI_API_KEY:
+                genai.configure(api_key=settings.GEMINI_API_KEY)
+                self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
+                self.api_available = True
+                logger.info("Gemini API configured successfully")
+            else:
+                logger.warning("Gemini API key not configured, using fallback responses")
+                self.model = None
+        except Exception as e:
+            logger.error(f"Failed to initialize Gemini API: {e}")
+            self.model = None
         
         # Enhanced system prompt for intelligent assistance
         self.system_prompt = """
@@ -145,8 +156,13 @@ Remember: Your goal is to make users successful on the platform. Be helpful, acc
         context: Optional[Dict] = None
     ) -> str:
         """
-        Get chatbot response (fallback AI generation)
+        Get chatbot response (HYBRID: AI-powered or intelligent fallback)
         """
+        # If API not available, use fallback response
+        if not self.api_available or not self.model:
+            logger.info("Using fallback mode (API unavailable)")
+            return self._get_fallback_response(user_message, context)
+
         try:
             # Build full prompt
             full_prompt = self._build_prompt(
@@ -154,15 +170,57 @@ Remember: Your goal is to make users successful on the platform. Be helpful, acc
                 conversation_history,
                 context
             )
-            
-            # Generate response
+
+            # Generate response using Gemini AI
+            logger.info("Using Gemini AI mode")
             response = self.model.generate_content(full_prompt)
-            
+
             return response.text.strip()
-            
+
         except Exception as e:
-            logger.error(f"Gemini API error: {str(e)}", exc_info=True)
-            return "I apologize, but I'm having trouble connecting right now. Please try again in a moment, or contact support if the issue persists."
+            logger.error(f"Gemini API error, falling back to pattern matching: {str(e)}")
+            return self._get_fallback_response(user_message, context)
+
+    def _get_fallback_response(self, user_message: str, context: Optional[Dict] = None) -> str:
+        """
+        Provide intelligent fallback responses when API is unavailable
+        """
+        text = user_message.lower()
+
+        # Greetings
+        if any(x in text for x in ["hello", "hi", "hey", "greetings"]):
+            return "Hello! I'm your Multitask assistant. I can help you find tasks, navigate the platform, or answer questions. What can I help you with?"
+
+        # Navigation requests
+        if "profile" in text:
+            return "I can help you navigate to your profile page. Go to your user menu and click on 'Profile'."
+
+        if any(x in text for x in ["dashboard", "home"]):
+            return "To access your dashboard, click on the 'Home' or 'Dashboard' link in the navigation menu."
+
+        if any(x in text for x in ["task", "find", "browse", "search"]):
+            return "You can browse available tasks by clicking on 'Browse Tasks' in the main navigation. Or check 'For You' for personalized AI recommendations based on your skills!"
+
+        if "message" in text or "inbox" in text:
+            return "To check your messages, click on the Messages icon in the navigation bar. You'll see all your conversations there."
+
+        # Task creation
+        if any(x in text for x in ["create task", "post task", "new task"]):
+            return "To create a new task, click on the '+ Create Task' button. I'll help guide you through filling out all the required information like title, description, budget, and category."
+
+        # Help/Features
+        if "help" in text or "what can you do" in text or "features" in text:
+            return """I can help you with:
+• Finding tasks that match your skills
+• Navigating anywhere on the platform
+• Creating compelling task posts
+• Answering questions about Multitask
+• Providing guidance on using features
+
+Just ask me naturally! For example: "Show me tasks" or "Go to my profile" """
+
+        # Default response
+        return "I'm here to help! I can assist you with finding tasks, navigating the platform, creating task posts, and answering questions about Multitask. What would you like to do?"
     
     def _build_prompt(
         self,
@@ -494,6 +552,25 @@ Return ONLY the category name, nothing else.
                 return None
 
         return action
+
+    def get_status(self) -> Dict:
+        """
+        Get chatbot system status (for health checks)
+        """
+        return {
+            'status': 'operational',
+            'mode': 'ai' if self.api_available else 'fallback',
+            'api_available': self.api_available,
+            'model': settings.GEMINI_MODEL if self.api_available else None,
+            'capabilities': {
+                'general_chat': True,
+                'task_recommendations': True,
+                'task_creation': True,
+                'navigation_help': True,
+                'intent_routing': True,
+            },
+            'fallback_enabled': True
+        }
 
 
 

@@ -16,7 +16,8 @@ urlpatterns = [
     
     # Rating
     path('messages/<int:message_id>/rate/', views.RateMessageView.as_view(), name='rate-message'),
-    
-    # Statistics
+
+    # Statistics & Status
+    path('status/', views.chatbot_status, name='chatbot-status'),
     path('statistics/', views.chatbot_statistics, name='chatbot-statistics'),
 ]

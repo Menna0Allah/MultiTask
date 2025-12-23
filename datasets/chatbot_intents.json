@@ -1,0 +1,353 @@
+[
+  {
+    "intent": "greeting",
+    "examples": [
+      "hello",
+      "hi",
+      "hey",
+      "good morning",
+      "good evening",
+      "مرحبا",
+      "السلام عليكم",
+      "أهلا",
+      "صباح الخير",
+      "مساء الخير",
+      "hi there",
+      "greetings",
+      "what's up",
+      "hey there",
+      "hello there"
+    ],
+    "responses": [
+      "Hello! Welcome to MultiTasks. How can I help you today?",
+      "Hi there! I'm here to assist you with the platform. What can I do for you?",
+      "مرحباً! كيف يمكنني مساعدتك اليوم؟"
+    ],
+    "context": "general"
+  },
+  {
+    "intent": "create_task",
+    "examples": [
+      "how do I post a task",
+      "create a new task",
+      "I want to post a job",
+      "how to create task",
+      "post a project",
+      "add new task",
+      "create job posting",
+      "كيف أنشئ مهمة",
+      "أريد نشر مهمة",
+      "كيف أضيف مشروع",
+      "need to hire someone",
+      "looking for freelancer",
+      "want to post work"
+    ],
+    "responses": [
+      "To create a task:\n1. Click 'Post a Task' button\n2. Fill in task details (title, description, budget)\n3. Select category and required skills\n4. Set deadline and location\n5. Click 'Publish'\n\nWould you like me to guide you through the process?",
+      "You can post a task by clicking the 'Post a Task' button on the dashboard. Let me know if you need help with any specific part!"
+    ],
+    "context": "task_creation"
+  },
+  {
+    "intent": "search_tasks",
+    "examples": [
+      "find tasks",
+      "search for work",
+      "show me available tasks",
+      "browse tasks",
+      "looking for work",
+      "find jobs",
+      "available projects",
+      "search projects",
+      "أبحث عن عمل",
+      "أريد مهام",
+      "المهام المتاحة",
+      "ابحث عن مشاريع",
+      "what tasks are available",
+      "show tasks in cairo",
+      "web development tasks"
+    ],
+    "responses": [
+      "You can search for tasks by:\n1. Using the search bar on the Tasks page\n2. Filtering by category, budget, location\n3. Viewing recommended tasks based on your skills\n\nWhat type of tasks are you looking for?",
+      "I can help you find tasks! Go to the 'Browse Tasks' page and use filters. You can also check your personalized recommendations on the dashboard."
+    ],
+    "context": "task_search"
+  },
+  {
+    "intent": "submit_proposal",
+    "examples": [
+      "how to apply for task",
+      "submit a proposal",
+      "bid on task",
+      "apply for job",
+      "send proposal",
+      "how do I apply",
+      "apply for project",
+      "submit application",
+      "كيف أقدم عرض",
+      "كيف أتقدم لمهمة",
+      "أريد التقديم على مهمة",
+      "make an offer",
+      "send bid",
+      "apply to task"
+    ],
+    "responses": [
+      "To submit a proposal:\n1. Open the task details page\n2. Click 'Submit Proposal' button\n3. Write your proposal explaining why you're the best fit\n4. Set your price and estimated time\n5. Click 'Send Proposal'\n\nMake sure to highlight your relevant experience!",
+      "You can apply by clicking 'Submit Proposal' on any task page. Write a compelling proposal and competitive price. Good luck!"
+    ],
+    "context": "proposal_submission"
+  },
+  {
+    "intent": "payment_process",
+    "examples": [
+      "how does payment work",
+      "payment process",
+      "how do I get paid",
+      "payment methods",
+      "when will I receive payment",
+      "escrow system",
+      "payment security",
+      "كيف أستلم المال",
+      "طرق الدفع",
+      "متى أحصل على المال",
+      "withdraw money",
+      "payment withdrawal",
+      "transfer funds"
+    ],
+    "responses": [
+      "MultiTasks uses a secure escrow system:\n1. Client deposits payment when accepting your proposal\n2. You complete the work\n3. Client approves the work\n4. Payment is released to your account\n5. Withdraw to your bank account or mobile wallet\n\nYour payment is protected throughout the process!",
+      "Payments are held in escrow for security. Once the client approves your work, funds are released to you. You can withdraw anytime to your preferred method."
+    ],
+    "context": "payment"
+  },
+  {
+    "intent": "dispute_resolution",
+    "examples": [
+      "client not paying",
+      "dispute",
+      "problem with payment",
+      "issue with client",
+      "freelancer not delivering",
+      "report issue",
+      "need help with dispute",
+      "مشكلة مع العميل",
+      "لم أستلم المال",
+      "مشكلة في الدفع",
+      "file a complaint",
+      "resolution center",
+      "mediation"
+    ],
+    "responses": [
+      "If you're facing an issue:\n1. Try to resolve directly with the other party through messaging\n2. If unresolved, open a dispute from the task page\n3. Our support team will review within 24-48 hours\n4. We'll mediate to reach a fair resolution\n\nWe're here to help! Would you like to open a dispute?",
+      "Sorry to hear about the issue. Please contact our support team through the 'Help' section with your task details. We'll assist you promptly."
+    ],
+    "context": "dispute"
+  },
+  {
+    "intent": "profile_setup",
+    "examples": [
+      "how to setup profile",
+      "complete my profile",
+      "add skills",
+      "update profile",
+      "edit profile",
+      "add portfolio",
+      "profile picture",
+      "verify account",
+      "كيف أعدل الملف الشخصي",
+      "أضف مهارات",
+      "تحديث الحساب",
+      "add experience",
+      "showcase portfolio",
+      "get verified badge"
+    ],
+    "responses": [
+      "To optimize your profile:\n1. Add a professional photo\n2. Write a compelling bio\n3. List your skills and experience\n4. Upload portfolio samples\n5. Complete verification for trust badge\n\nA complete profile gets 5x more responses!",
+      "Go to Settings > Profile to update your information. Add skills, bio, and portfolio to stand out!"
+    ],
+    "context": "profile"
+  },
+  {
+    "intent": "pricing_help",
+    "examples": [
+      "how much should I charge",
+      "pricing guide",
+      "what's the average rate",
+      "how to price my services",
+      "freelance rates in egypt",
+      "budget recommendations",
+      "كم أطلب مقابل الخدمة",
+      "الأسعار المناسبة",
+      "كم التكلفة المتوسطة",
+      "rate calculator",
+      "pricing strategy",
+      "competitive pricing"
+    ],
+    "responses": [
+      "Pricing depends on:\n- Your experience level\n- Project complexity\n- Time required\n- Market rates in Egypt\n\nFor reference:\n- Entry level: 500-2000 EGP\n- Intermediate: 2000-8000 EGP\n- Expert: 8000-30000+ EGP\n\nCheck similar tasks to see competitive rates!",
+      "Research similar completed tasks to gauge market rates. Price competitively but don't undervalue your work!"
+    ],
+    "context": "pricing"
+  },
+  {
+    "intent": "review_system",
+    "examples": [
+      "how do reviews work",
+      "leave a review",
+      "rating system",
+      "feedback",
+      "how to rate",
+      "review a freelancer",
+      "review a client",
+      "reputation",
+      "كيف أكتب تقييم",
+      "نظام التقييمات",
+      "التقييم",
+      "give feedback",
+      "client review",
+      "freelancer rating"
+    ],
+    "responses": [
+      "After task completion:\n1. Both parties can leave reviews\n2. Rate 1-5 stars on quality, communication, professionalism\n3. Write detailed feedback\n4. Reviews are public and affect reputation\n\nHonest reviews help build trust in the community!",
+      "Reviews are visible on profiles. They help others make informed decisions. Leave fair, constructive feedback after each completed task."
+    ],
+    "context": "reviews"
+  },
+  {
+    "intent": "skills_recommendation",
+    "examples": [
+      "what skills are in demand",
+      "popular skills",
+      "what to learn",
+      "trending skills",
+      "most requested skills",
+      "skills to add",
+      "المهارات المطلوبة",
+      "أكثر المهارات طلبا",
+      "ماذا أتعلم",
+      "marketable skills",
+      "high-paying skills",
+      "future skills"
+    ],
+    "responses": [
+      "Top in-demand skills in Egypt:\n\n💻 Tech: Web Development, Mobile Apps, Python, React\n🎨 Design: UI/UX, Graphic Design, Video Editing\n📝 Content: Arabic Writing, Translation, SEO\n📊 Business: Digital Marketing, Data Analysis\n\nFocus on skills matching your interests and market demand!",
+      "Popular skills right now: Web Development, Graphic Design, Digital Marketing, Video Editing, and Translation. Consider adding complementary skills to your profile!"
+    ],
+    "context": "skills"
+  },
+  {
+    "intent": "account_verification",
+    "examples": [
+      "how to verify account",
+      "get verified badge",
+      "verification process",
+      "verify identity",
+      "trusted freelancer badge",
+      "account authentication",
+      "كيف أوثق الحساب",
+      "التوثيق",
+      "علامة التوثيق",
+      "blue checkmark",
+      "verified status",
+      "identity verification"
+    ],
+    "responses": [
+      "To get verified:\n1. Go to Settings > Verification\n2. Upload ID document (National ID/Passport)\n3. Provide phone number verification\n4. Complete email verification\n5. Wait 24-48 hours for review\n\nVerified accounts get 3x more trust from clients!",
+      "Verification increases your credibility! Upload your ID in Settings to start the process. It usually takes 1-2 business days."
+    ],
+    "context": "verification"
+  },
+  {
+    "intent": "messaging_system",
+    "examples": [
+      "how to message",
+      "contact client",
+      "chat with freelancer",
+      "send message",
+      "inbox",
+      "messages",
+      "communication",
+      "talk to client",
+      "كيف أراسل",
+      "الرسائل",
+      "التواصل مع العميل",
+      "direct message",
+      "start conversation",
+      "reply to message"
+    ],
+    "responses": [
+      "Messaging on MultiTasks:\n1. Click 'Messages' in navigation\n2. Start new conversation or reply to existing\n3. All communication stays on platform for security\n4. Get notified of new messages\n\nKeep all discussions on platform for protection!",
+      "You can message clients/freelancers from task pages or the Messages section. We recommend keeping all communication on platform for safety."
+    ],
+    "context": "messaging"
+  },
+  {
+    "intent": "task_status",
+    "examples": [
+      "check task status",
+      "where is my task",
+      "task progress",
+      "application status",
+      "proposal status",
+      "track application",
+      "task updates",
+      "حالة المهمة",
+      "حالة العرض",
+      "متابعة المهمة",
+      "pending proposal",
+      "accepted application",
+      "task completion"
+    ],
+    "responses": [
+      "Check your task status:\n1. Go to Dashboard\n2. View 'My Tasks' (for clients) or 'My Applications' (for freelancers)\n3. See status: Pending, In Progress, Completed\n4. Get notifications for updates\n\nWhich task would you like to check?",
+      "You can track all your tasks and applications from your Dashboard. Click on any task for detailed status and history."
+    ],
+    "context": "task_status"
+  },
+  {
+    "intent": "cancellation_policy",
+    "examples": [
+      "cancel task",
+      "cancellation policy",
+      "refund policy",
+      "cancel order",
+      "how to cancel",
+      "cancel application",
+      "withdraw proposal",
+      "كيف ألغي",
+      "سياسة الإلغاء",
+      "استرجاع المال",
+      "cancel project",
+      "task cancellation",
+      "refund request"
+    ],
+    "responses": [
+      "Cancellation policy:\n- Before acceptance: Free cancellation by either party\n- After acceptance: Mutual agreement needed\n- With work started: Partial payment may apply\n- Client cancellation: Freelancer compensated for work done\n\nContact support for specific cases!",
+      "You can cancel applications before acceptance. For ongoing tasks, discuss with the other party or contact support for mediation."
+    ],
+    "context": "cancellation"
+  },
+  {
+    "intent": "platform_fees",
+    "examples": [
+      "service fees",
+      "commission",
+      "platform fees",
+      "how much does multitasks charge",
+      "transaction fees",
+      "what are the fees",
+      "cost of service",
+      "رسوم المنصة",
+      "العمولة",
+      "كم تأخذ المنصة",
+      "freelancer fees",
+      "client fees",
+      "payment charges"
+    ],
+    "responses": [
+      "MultiTasks fees:\n- Freelancers: 10% service fee on earnings\n- Clients: Free to post tasks\n- Payment processing: Minimal transaction fees\n\nFees cover platform maintenance, support, and payment security. Very competitive rates!",
+      "We charge freelancers 10% on completed projects. Clients post for free. This helps us maintain a safe, reliable platform for everyone!"
+    ],
+    "context": "fees"
+  }
+]
