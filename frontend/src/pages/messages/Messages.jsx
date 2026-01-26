@@ -8,6 +8,7 @@ import Avatar from '../../components/common/Avatar';
 import Loading from '../../components/common/Loading';
 import Empty from '../../components/common/Empty';
 import Button from '../../components/common/Button';
+import Skeleton from '../../components/common/Skeleton';
 import {
   ChatBubbleLeftRightIcon,
   PaperAirplaneIcon,
@@ -335,8 +336,46 @@ const Messages = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <Loading />
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="container-custom py-8">
+          <div className="flex bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden" style={{ height: 'calc(100vh - 8rem)' }}>
+            {/* Sidebar Skeleton */}
+            <div className="w-full md:w-96 border-r border-gray-200 dark:border-gray-700 p-6 space-y-4">
+              <Skeleton variant="title" className="w-32" />
+              <Skeleton className="w-full h-10" />
+              <div className="space-y-4 mt-6">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-start space-x-3 p-4">
+                    <Skeleton variant="avatar" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="w-3/4" />
+                      <Skeleton className="w-full" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Chat Area Skeleton */}
+            <div className="hidden md:flex flex-1 flex-col">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center space-x-3">
+                  <Skeleton variant="avatar" />
+                  <div className="space-y-2">
+                    <Skeleton className="w-32" />
+                    <Skeleton className="w-20" />
+                  </div>
+                </div>
+              </div>
+              <div className="flex-1 p-6 space-y-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className={`flex ${i % 2 === 0 ? 'justify-end' : 'justify-start'}`}>
+                    <Skeleton className={`max-w-sm ${i % 2 === 0 ? 'w-64' : 'w-48'} h-16`} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

@@ -6,6 +6,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth import get_user_model
 from django.conf import settings
+from django.db.models import Q
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 
@@ -16,8 +17,11 @@ from .serializers import (
     UserUpdateSerializer,
     ChangePasswordSerializer,
     CustomTokenObtainPairSerializer,
-    PublicUserSerializer
+    PublicUserSerializer,
+    PortfolioItemSerializer,
+    PortfolioItemUpdateSerializer
 )
+from .models import PortfolioItem
 
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
@@ -372,19 +376,39 @@ class UserListView(generics.ListAPIView):
     """
     List all users (with filters)
     """
-    queryset = User.objects.filter(is_active=True)
     serializer_class = PublicUserSerializer
     permission_classes = [permissions.AllowAny]
-    filterset_fields = ['user_type', 'city', 'country', 'is_verified']
+    filterset_fields = ['city', 'country', 'is_verified']
     search_fields = ['username', 'first_name', 'last_name', 'skills']
     ordering_fields = ['average_rating', 'total_reviews', 'created_at']
     ordering = ['-average_rating']
-    
+
+    def get_queryset(self):
+        queryset = User.objects.filter(is_active=True)
+
+        # Handle user_type filter with case-insensitivity and include 'both'
+        user_type = self.request.query_params.get('user_type', '').lower()
+        if user_type:
+            if user_type == 'freelancer':
+                # Include both 'freelancer' and 'both' users
+                queryset = queryset.filter(
+                    Q(user_type__iexact='freelancer') | Q(user_type__iexact='both')
+                )
+            elif user_type == 'client':
+                # Include both 'client' and 'both' users
+                queryset = queryset.filter(
+                    Q(user_type__iexact='client') | Q(user_type__iexact='both')
+                )
+            else:
+                queryset = queryset.filter(user_type__iexact=user_type)
+
+        return queryset
+
     @extend_schema(
         summary="List users",
         description="Get list of users with optional filters",
         parameters=[
-            OpenApiParameter('user_type', OpenApiTypes.STR, description='Filter by user type'),
+            OpenApiParameter('user_type', OpenApiTypes.STR, description='Filter by user type (freelancer, client, both)'),
             OpenApiParameter('city', OpenApiTypes.STR, description='Filter by city'),
             OpenApiParameter('search', OpenApiTypes.STR, description='Search in username, name, skills'),
         ]
@@ -447,3 +471,402 @@ def check_email(request):
         'email': email,
         'available': is_available
     })
+
+
+# ==============================================================================
+# Email Verification Views
+# ==============================================================================
+from django.core.mail import send_mail
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.contrib.auth.tokens import default_token_generator
+from django.template.loader import render_to_string
+
+
+class ResendVerificationEmailView(APIView):
+    """Resend email verification link"""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+
+        if not email:
+            return Response(
+                {'detail': 'Email is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = User.objects.get(email=email)
+
+            # Check if already verified
+            if user.is_email_verified:
+                return Response(
+                    {'detail': 'Email is already verified'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Generate verification token
+            token = default_token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+
+            # Create verification link
+            verification_link = f"{settings.FRONTEND_URL}/verify-email?token={token}&uid={uid}&email={email}"
+
+            # Send email
+            subject = 'Verify Your Email - MultiTask'
+            message = f"""
+            Hi {user.first_name or user.username},
+
+            Please verify your email address by clicking the link below:
+
+            {verification_link}
+
+            This link will expire in 24 hours.
+
+            If you didn't create an account on MultiTask, please ignore this email.
+
+            Best regards,
+            The MultiTask Team
+            """
+
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [email],
+                fail_silently=False,
+            )
+
+            return Response(
+                {'detail': 'Verification email sent successfully'},
+                status=status.HTTP_200_OK
+            )
+
+        except User.DoesNotExist:
+            # Don't reveal if email exists or not for security
+            return Response(
+                {'detail': 'If this email exists, a verification link has been sent'},
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            print(f"Error sending verification email: {str(e)}")
+            return Response(
+                {'detail': 'Failed to send verification email. Please try again later.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class VerifyEmailView(APIView):
+    """Verify email address with token"""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        token = request.data.get('token')
+        uid = request.data.get('uid')
+
+        if not token or not uid:
+            return Response(
+                {'detail': 'Token and UID are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Decode user ID
+            user_id = force_str(urlsafe_base64_decode(uid))
+            user = User.objects.get(pk=user_id)
+
+            # Verify token
+            if not default_token_generator.check_token(user, token):
+                return Response(
+                    {'detail': 'Invalid or expired verification link'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Mark email as verified
+            user.is_email_verified = True
+            user.save()
+
+            return Response(
+                {'detail': 'Email verified successfully'},
+                status=status.HTTP_200_OK
+            )
+
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response(
+                {'detail': 'Invalid verification link'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+# ==============================================================================
+# Password Reset Views
+# ==============================================================================
+
+class PasswordResetRequestView(APIView):
+    """Request password reset email"""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+
+        if not email:
+            return Response(
+                {'detail': 'Email is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = User.objects.get(email=email)
+
+            # Generate reset token
+            token = default_token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+
+            # Create reset link
+            reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}&uid={uid}"
+
+            # Send email
+            subject = 'Password Reset - MultiTask'
+            message = f"""
+            Hi {user.first_name or user.username},
+
+            You requested to reset your password. Click the link below to reset it:
+
+            {reset_link}
+
+            This link will expire in 24 hours.
+
+            If you didn't request this, please ignore this email.
+
+            Best regards,
+            The MultiTask Team
+            """
+
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [email],
+                fail_silently=False,
+            )
+
+            return Response(
+                {'detail': 'Password reset email sent successfully'},
+                status=status.HTTP_200_OK
+            )
+
+        except User.DoesNotExist:
+            # Don't reveal if email exists for security
+            return Response(
+                {'detail': 'If this email exists, a password reset link has been sent'},
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            print(f"Error sending password reset email: {str(e)}")
+            return Response(
+                {'detail': 'Failed to send password reset email. Please try again later.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class PasswordResetConfirmView(APIView):
+    """Confirm password reset with token"""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        token = request.data.get('token')
+        uid = request.data.get('uid')
+        new_password = request.data.get('new_password')
+        new_password2 = request.data.get('new_password2')
+
+        if not all([token, uid, new_password, new_password2]):
+            return Response(
+                {'detail': 'All fields are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if new_password != new_password2:
+            return Response(
+                {'detail': 'Passwords do not match'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if len(new_password) < 8:
+            return Response(
+                {'detail': 'Password must be at least 8 characters'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Decode user ID
+            user_id = force_str(urlsafe_base64_decode(uid))
+            user = User.objects.get(pk=user_id)
+
+            # Verify token
+            if not default_token_generator.check_token(user, token):
+                return Response(
+                    {'detail': 'Invalid or expired reset link'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Set new password
+            user.set_password(new_password)
+            user.save()
+
+            return Response(
+                {'detail': 'Password reset successfully'},
+                status=status.HTTP_200_OK
+            )
+
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response(
+                {'detail': 'Invalid reset link'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+# ==============================================================================
+# Portfolio Views
+# ==============================================================================
+
+class PortfolioItemListCreateView(generics.ListCreateAPIView):
+    """
+    List all portfolio items for a user or create a new one
+    GET: /api/auth/users/{user_id}/portfolio/
+    POST: /api/auth/portfolio/
+    """
+    serializer_class = PortfolioItemSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        # If viewing a specific user's portfolio
+        user_id = self.kwargs.get('user_id')
+        if user_id:
+            return PortfolioItem.objects.filter(user_id=user_id)
+        # Otherwise, return the authenticated user's portfolio
+        return PortfolioItem.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class PortfolioItemDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Retrieve, update or delete a portfolio item
+    GET/PUT/PATCH/DELETE: /api/auth/portfolio/{id}/
+    """
+    queryset = PortfolioItem.objects.all()
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.request.method in ['PUT', 'PATCH']:
+            return PortfolioItemUpdateSerializer
+        return PortfolioItemSerializer
+
+    def get_queryset(self):
+        # Users can only access their own portfolio items
+        return PortfolioItem.objects.filter(user=self.request.user)
+
+
+class UserPortfolioListView(generics.ListAPIView):
+    """
+    Public view to list a user's portfolio items
+    GET: /api/auth/users/{username}/portfolio/
+    """
+    serializer_class = PortfolioItemSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        username = self.kwargs.get('username')
+        return PortfolioItem.objects.filter(user__username=username)
+
+
+# ==============================================================================
+# Account Deletion View
+# ==============================================================================
+
+class DeleteAccountView(APIView):
+    """
+    Delete user account permanently
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        summary="Delete account",
+        description="Permanently delete the authenticated user's account",
+        request={
+            'application/json': {
+                'type': 'object',
+                'properties': {
+                    'password': {'type': 'string', 'description': 'Current password for verification'},
+                    'confirmation': {'type': 'string', 'description': 'Must be "DELETE" to confirm'},
+                },
+                'required': ['password', 'confirmation']
+            }
+        },
+        responses={200: {'description': 'Account deleted successfully'}}
+    )
+    def post(self, request):
+        password = request.data.get('password')
+        confirmation = request.data.get('confirmation')
+
+        # Validate password
+        if not password:
+            return Response(
+                {'error': 'Password is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not request.user.check_password(password):
+            return Response(
+                {'error': 'Incorrect password'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate confirmation
+        if confirmation != 'DELETE':
+            return Response(
+                {'error': 'Please type DELETE to confirm account deletion'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check for active tasks
+        active_tasks = request.user.posted_tasks.filter(
+            status__in=['OPEN', 'IN_PROGRESS']
+        ).count()
+
+        active_applications = request.user.applications.filter(
+            status='ACCEPTED',
+            task__status='IN_PROGRESS'
+        ).count()
+
+        if active_tasks > 0:
+            return Response(
+                {'error': f'You have {active_tasks} active task(s). Please complete or cancel them before deleting your account.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if active_applications > 0:
+            return Response(
+                {'error': f'You have {active_applications} active job(s) in progress. Please complete them before deleting your account.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Delete the user
+        user = request.user
+        username = user.username
+
+        # Soft delete - mark as inactive instead of hard delete
+        user.is_active = False
+        user.email = f"deleted_{user.id}_{user.email}"  # Prevent email reuse issues
+        user.save()
+
+        # Log the deletion
+        import logging
+        logger = logging.getLogger('accounts')
+        logger.info(f"User account deleted: {username} (ID: {user.id})")
+
+        return Response({
+            'message': 'Your account has been successfully deleted.'
+        }, status=status.HTTP_200_OK)

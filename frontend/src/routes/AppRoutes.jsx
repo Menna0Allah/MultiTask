@@ -8,6 +8,9 @@ import PrivateRoute from './PrivateRoute';
 import Home from '../pages/Home';
 import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
+import ForgotPassword from '../pages/auth/ForgotPassword';
+import ResetPassword from '../pages/auth/ResetPassword';
+import VerifyEmail from '../pages/auth/VerifyEmail';
 import Dashboard from '../pages/Dashboard';
 import Categories from '../pages/Categories';
 import TaskList from '../pages/tasks/TaskList';
@@ -20,7 +23,20 @@ import Messages from '../pages/messages/Messages';
 import Notifications from '../pages/notifications/Notifications';
 import HowItWorks from '../pages/HowItWorks';
 import ForYou from '../pages/ForYou';
+import Wallet from '../pages/payments/Wallet';
+import Transactions from '../pages/payments/Transactions';
+import StripeOnboarding from '../pages/payments/StripeOnboarding';
+import PrivacyPolicy from '../pages/legal/PrivacyPolicy';
+import TermsOfService from '../pages/legal/TermsOfService';
 import NotFound from '../pages/NotFound';
+import UserProfile from '../pages/users/UserProfile';
+import FreelancerDirectory from '../pages/users/FreelancerDirectory';
+import ContactUs from '../pages/ContactUs';
+import FAQ from '../pages/FAQ';
+import AboutUs from '../pages/AboutUs';
+import SavedTasks from '../pages/tasks/SavedTasks';
+import ServerError from '../pages/ServerError';
+import Maintenance from '../pages/Maintenance';
 
 const AppRoutes = () => {
   const { isAuthenticated } = useAuth();
@@ -35,18 +51,34 @@ const AppRoutes = () => {
           isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />
         } 
       />
-      <Route 
-        path="/register" 
+      <Route
+        path="/register"
         element={
           isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />
-        } 
+        }
       />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
 
       {/* Categories */}
       <Route path="/categories" element={<Layout><Categories /></Layout>} />
 
       {/* How it Works */}
       <Route path="/how-it-works" element={<Layout><HowItWorks /></Layout>} />
+
+      {/* Legal Pages */}
+      <Route path="/privacy" element={<Layout><PrivacyPolicy /></Layout>} />
+      <Route path="/terms" element={<Layout><TermsOfService /></Layout>} />
+
+      {/* Info Pages */}
+      <Route path="/contact" element={<Layout><ContactUs /></Layout>} />
+      <Route path="/faq" element={<Layout><FAQ /></Layout>} />
+      <Route path="/about" element={<Layout><AboutUs /></Layout>} />
+
+      {/* User Profiles */}
+      <Route path="/freelancers" element={<Layout><FreelancerDirectory /></Layout>} />
+      <Route path="/users/:username" element={<Layout><UserProfile /></Layout>} />
 
       {/* Task Routes */}
       <Route path="/tasks" element={<Layout><TaskList /></Layout>} />
@@ -90,6 +122,15 @@ const AppRoutes = () => {
       />
 
       <Route
+        path="/saved-tasks"
+        element={
+          <PrivateRoute>
+            <Layout><SavedTasks /></Layout>
+          </PrivateRoute>
+        }
+      />
+
+      <Route
         path="/profile"
         element={
           <PrivateRoute>
@@ -124,6 +165,38 @@ const AppRoutes = () => {
           </PrivateRoute>
         }
       />
+
+      {/* Payment Routes */}
+      <Route
+        path="/wallet"
+        element={
+          <PrivateRoute>
+            <Layout><Wallet /></Layout>
+          </PrivateRoute>
+        }
+      />
+
+      <Route
+        path="/transactions"
+        element={
+          <PrivateRoute>
+            <Layout><Transactions /></Layout>
+          </PrivateRoute>
+        }
+      />
+
+      <Route
+        path="/payments/onboarding"
+        element={
+          <PrivateRoute>
+            <Layout><StripeOnboarding /></Layout>
+          </PrivateRoute>
+        }
+      />
+
+      {/* Error Pages */}
+      <Route path="/500" element={<ServerError />} />
+      <Route path="/maintenance" element={<Maintenance />} />
 
       {/* 404 */}
       <Route path="*" element={<Layout><NotFound /></Layout>} />

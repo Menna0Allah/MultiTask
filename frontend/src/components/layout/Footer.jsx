@@ -53,6 +53,11 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
+                <Link to="/freelancers" className="hover:text-white transition">
+                  Freelancer Directory
+                </Link>
+              </li>
+              <li>
                 <Link to="/register" className="hover:text-white transition">
                   Sign Up
                 </Link>
@@ -77,6 +82,11 @@ const Footer = () => {
               <li>
                 <Link to="/contact" className="hover:text-white transition">
                   Contact
+                </Link>
+              </li>
+              <li>
+                <Link to="/faq" className="hover:text-white transition">
+                  FAQ
                 </Link>
               </li>
               <li>

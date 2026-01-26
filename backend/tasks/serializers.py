@@ -1,11 +1,12 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import (
-    Category, 
-    Task, 
-    TaskApplication, 
-    Review, 
-    TaskImage
+    Category,
+    Task,
+    TaskApplication,
+    Review,
+    TaskImage,
+    SavedTask
 )
 from accounts.serializers import PublicUserSerializer
 
@@ -72,6 +73,7 @@ class TaskDetailSerializer(serializers.ModelSerializer):
     is_applied = serializers.SerializerMethodField()
     can_apply = serializers.SerializerMethodField()
     required_skills = serializers.SerializerMethodField()
+    escrow = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
@@ -81,6 +83,7 @@ class TaskDetailSerializer(serializers.ModelSerializer):
             'is_remote', 'deadline', 'estimated_duration', 'status',
             'assigned_to', 'image', 'images', 'views_count',
             'applications_count', 'required_skills', 'is_applied', 'can_apply',
+            'requires_payment', 'payment_status', 'final_amount', 'escrow',
             'created_at', 'updated_at', 'completed_at'
         ]
         read_only_fields = fields
@@ -127,8 +130,18 @@ class TaskDetailSerializer(serializers.ModelSerializer):
         # Already applied
         if self.get_is_applied(obj):
             return False
-        
+
         return True
+
+    def get_escrow(self, obj):
+        """Get escrow details if exists"""
+        try:
+            if hasattr(obj, 'escrow'):
+                from payments.serializers import EscrowSerializer
+                return EscrowSerializer(obj.escrow).data
+        except:
+            pass
+        return None
 
 
 class TaskCreateUpdateSerializer(serializers.ModelSerializer):
@@ -257,11 +270,43 @@ class ReviewSerializer(serializers.ModelSerializer):
             attrs.get('quality_rating'),
             attrs.get('professionalism_rating')
         ]
-        
+
         for rating in detailed_ratings:
             if rating is not None and (rating < 1 or rating > 5):
                 raise serializers.ValidationError(
                     'Detailed ratings must be between 1 and 5'
                 )
-        
+
+        return attrs
+
+
+class SavedTaskSerializer(serializers.ModelSerializer):
+    """Serializer for saved/bookmarked tasks"""
+    task = TaskListSerializer(read_only=True)
+    task_id = serializers.PrimaryKeyRelatedField(
+        queryset=Task.objects.all(),
+        source='task',
+        write_only=True
+    )
+
+    class Meta:
+        model = SavedTask
+        fields = [
+            'id', 'task', 'task_id', 'note', 'created_at'
+        ]
+        read_only_fields = ['id', 'task', 'created_at']
+
+    def create(self, validated_data):
+        """Create saved task with user from request"""
+        validated_data['user'] = self.context['request'].user
+        return super().create(validated_data)
+
+    def validate(self, attrs):
+        """Ensure task isn't already saved"""
+        user = self.context['request'].user
+        task = attrs.get('task')
+
+        if SavedTask.objects.filter(user=user, task=task).exists():
+            raise serializers.ValidationError('You have already saved this task')
+
         return attrs

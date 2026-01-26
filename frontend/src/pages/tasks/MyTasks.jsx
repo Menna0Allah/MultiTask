@@ -143,7 +143,7 @@ const MyTasks = () => {
   const filteredApplications = applications
     .filter(app => {
       const matchesSearch = app.task?.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           app.proposal_text?.toLowerCase().includes(searchQuery.toLowerCase());
+                           app.proposal?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesFilter = filterStatus === 'all' || app.status === filterStatus;
       return matchesSearch && matchesFilter;
     })
@@ -278,7 +278,7 @@ const MyTasks = () => {
             <div className="mb-3">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Your Proposal:</p>
               <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-3">
-                {application.proposal_text || 'No proposal text'}
+                {application.proposal || 'No proposal text'}
               </p>
             </div>
 

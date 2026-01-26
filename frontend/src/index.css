@@ -51,3 +51,140 @@
 .animate-scaleIn {
   animation: scaleIn 0.3s ease-out;
 }
+
+/* Custom animations for home page */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.8s ease-out forwards;
+  opacity: 0;
+}
+
+.animation-delay-200 {
+  animation-delay: 0.2s;
+}
+
+.animation-delay-300 {
+  animation-delay: 0.3s;
+}
+
+.animation-delay-400 {
+  animation-delay: 0.4s;
+}
+
+.delay-1000 {
+  animation-delay: 1s;
+}
+
+/* Modern Custom Scrollbar */
+/* For Webkit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #9333ea, #ec4899);
+  border-radius: 10px;
+  border: 2px solid #f1f1f1;
+  transition: all 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #7c3aed, #db2777);
+  border-color: #e5e5e5;
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #a855f7, #f472b6);
+  border-color: #1f2937;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #9333ea, #ec4899);
+  border-color: #111827;
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #9333ea #f1f1f1;
+}
+
+.dark * {
+  scrollbar-color: #a855f7 #1f2937;
+}
+
+/* Force light mode for task detail page */
+/* This ensures the page stays in light mode even when dark mode is active */
+.force-light-mode {
+  background-color: #f9fafb;
+  color: #111827;
+  color-scheme: light;
+}
+
+/* Comprehensive dark mode overrides - prevents dark: classes from applying */
+.dark .force-light-mode {
+  background-color: #f9fafb !important;
+  color: #111827 !important;
+}
+
+/* Override Tailwind dark mode classes for backgrounds */
+.dark .force-light-mode .dark\:bg-gray-800,
+.dark .force-light-mode .dark\:bg-gray-900 {
+  background-color: #ffffff !important;
+}
+
+.dark .force-light-mode .dark\:bg-gray-700 {
+  background-color: #f9fafb !important;
+}
+
+/* Override Tailwind dark mode classes for text */
+.dark .force-light-mode .dark\:text-white,
+.dark .force-light-mode .dark\:text-gray-100 {
+  color: #111827 !important;
+}
+
+.dark .force-light-mode .dark\:text-gray-200,
+.dark .force-light-mode .dark\:text-gray-300,
+.dark .force-light-mode .dark\:text-gray-400 {
+  color: #4b5563 !important;
+}
+
+/* Override Tailwind dark mode classes for borders */
+.dark .force-light-mode .dark\:border-gray-700,
+.dark .force-light-mode .dark\:border-gray-600 {
+  border-color: #e5e7eb !important;
+}
+
+/* For cards and other components */
+.dark .force-light-mode [class*="dark:bg-gray"] {
+  background-color: #ffffff !important;
+}
+
+.dark .force-light-mode [class*="dark:text-gray"] {
+  color: #4b5563 !important;
+}
+
+.dark .force-light-mode [class*="dark:border-gray"] {
+  border-color: #e5e7eb !important;
+}

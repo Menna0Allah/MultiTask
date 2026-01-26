@@ -130,7 +130,33 @@ class Task(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
-    
+
+    # Payment fields
+    requires_payment = models.BooleanField(
+        default=True,
+        help_text="Whether this task requires escrow payment"
+    )
+
+    payment_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('not_required', 'Not Required'),
+            ('pending', 'Pending Payment'),
+            ('escrowed', 'Escrowed'),
+            ('released', 'Released'),
+            ('refunded', 'Refunded'),
+        ],
+        default='not_required'
+    )
+
+    final_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Final agreed amount (from accepted application)"
+    )
+
     class Meta:
         db_table = 'tasks'
         verbose_name = 'Task'
@@ -312,12 +338,46 @@ class TaskImage(models.Model):
     image = models.ImageField(upload_to='task_images/')
     caption = models.CharField(max_length=200, blank=True, null=True)
     order = models.IntegerField(default=0)
-    
+
     uploaded_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'task_images'
         ordering = ['order', 'uploaded_at']
-    
+
     def __str__(self):
         return f"Image for {self.task.title}"
+
+
+class SavedTask(models.Model):
+    """
+    Saved/bookmarked tasks by users
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='saved_tasks'
+    )
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        related_name='saved_by'
+    )
+
+    # Optional note from user
+    note = models.TextField(blank=True, null=True, help_text="Personal note about this saved task")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'saved_tasks'
+        verbose_name = 'Saved Task'
+        verbose_name_plural = 'Saved Tasks'
+        ordering = ['-created_at']
+        unique_together = ['user', 'task']  # Can only save once
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} saved {self.task.title}"

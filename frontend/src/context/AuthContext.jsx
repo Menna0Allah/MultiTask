@@ -53,11 +53,11 @@ export const AuthProvider = ({ children }) => {
       const data = await authService.login(usernameOrEmail, password);
       setUser(data.user);
       setIsAuthenticated(true);
-      toast.success('Welcome back!');
+      // Don't show toast here - let the calling component handle it
       return data;
     } catch (error) {
-      const message = error.response?.data?.non_field_errors?.[0] || 
-                     error.response?.data?.detail || 
+      const message = error.response?.data?.non_field_errors?.[0] ||
+                     error.response?.data?.detail ||
                      'Invalid credentials';
       toast.error(message);
       throw error;
@@ -72,11 +72,11 @@ export const AuthProvider = ({ children }) => {
       const data = await authService.register(userData);
       setUser(data.user);
       setIsAuthenticated(true);
-      toast.success('Registration successful! Welcome to Multitask!');
+      // Don't show toast here - let the calling component handle it
       return data;
     } catch (error) {
-      const message = error.response?.data?.username?.[0] || 
-                     error.response?.data?.email?.[0] || 
+      const message = error.response?.data?.username?.[0] ||
+                     error.response?.data?.email?.[0] ||
                      'Registration failed';
       toast.error(message);
       throw error;
@@ -118,10 +118,10 @@ export const AuthProvider = ({ children }) => {
         ...prevUser,
         ...userData
       }));
-      toast.success('Profile updated successfully');
+      // Don't show toast here - let the calling component handle it
       return userData;
     } catch (error) {
-      toast.error('Failed to update profile');
+      // Don't show generic error - let the calling component handle it with specific details
       throw error;
     }
   };

@@ -111,7 +111,7 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16 relative">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2 flex-shrink-0">
-            <div className="w-10 h-10 bg-primary-600 dark:bg-primary-600 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 rounded-lg flex items-center justify-center shadow-lg">
               <span className="text-white font-bold text-xl">M</span>
             </div>
             <span className="text-xl font-bold text-gray-900 dark:text-white">Multitask</span>
@@ -125,10 +125,17 @@ const Navbar = () => {
             <Link to="/tasks" className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium">
               Browse Tasks
             </Link>
-            
+            {/* Freelancers link - only for clients (includes 'both' users) */}
+            {isAuthenticated && user?.is_client && (
+              <Link to="/freelancers" className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium">
+                Freelancers
+              </Link>
+            )}
+
             {isAuthenticated && (
               <>
-                {(user?.is_freelancer || user?.is_client) && (
+                {/* For You (task recommendations) - only for freelancers (includes 'both' users) */}
+                {user?.is_freelancer && (
                   <Link to="/recommendations" className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium">
                     For You
                   </Link>
@@ -302,6 +309,22 @@ const Navbar = () => {
                         >
                           My Tasks
                         </Link>
+                        <Link
+                          to="/saved-tasks"
+                          className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          onClick={() => setProfileMenuOpen(false)}
+                        >
+                          Saved Tasks
+                        </Link>
+                        {user?.is_freelancer && (
+                          <Link
+                            to="/wallet"
+                            className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            onClick={() => setProfileMenuOpen(false)}
+                          >
+                            My Wallet
+                          </Link>
+                        )}
                         <hr className="my-1 dark:border-gray-700" />
                         <button
                           onClick={() => {
@@ -359,10 +382,21 @@ const Navbar = () => {
             >
               Browse Tasks
             </Link>
+            {/* Freelancers link - only for clients (includes 'both' users) */}
+            {isAuthenticated && user?.is_client && (
+              <Link
+                to="/freelancers"
+                className="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Freelancers
+              </Link>
+            )}
 
             {isAuthenticated ? (
               <>
-                {(user?.is_freelancer || user?.is_client) && (
+                {/* For You (task recommendations) - only for freelancers (includes 'both' users) */}
+                {user?.is_freelancer && (
                   <Link
                     to="/recommendations"
                     className="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
@@ -397,6 +431,16 @@ const Navbar = () => {
                 >
                   My Tasks
                 </Link>
+
+                {user?.is_freelancer && (
+                  <Link
+                    to="/wallet"
+                    className="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    My Wallet
+                  </Link>
+                )}
 
                 <button
                   onClick={() => {

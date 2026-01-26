@@ -329,7 +329,7 @@ Just ask me naturally! For example: "Show me tasks" or "Go to my profile" """
 
             service = get_recommendation_service()
 
-            # ✅ HARD GUARD — REQUIRED
+            # HARD GUARD — REQUIRED
             if not hasattr(user, "user_type") or user.user_type not in ["freelancer", "both"]:
                 return (
                     "Task recommendations are available for freelancers. "

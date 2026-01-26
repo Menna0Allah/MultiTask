@@ -5,6 +5,7 @@ import chatbotService from '../../services/chatbotService';
 import Card from '../../components/common/Card';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
+import FileUpload from '../../components/common/FileUpload';
 import toast from 'react-hot-toast';
 import {
   SparklesIcon,
@@ -19,6 +20,7 @@ import {
   TagIcon,
   LightBulbIcon,
   ArrowPathIcon,
+  PhotoIcon,
 } from '@heroicons/react/24/outline';
 
 const TaskCreate = () => {
@@ -42,6 +44,7 @@ const TaskCreate = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
+  const [files, setFiles] = useState([]);
 
   // AI Chatbot
   const [showChatbot, setShowChatbot] = useState(false);
@@ -167,7 +170,23 @@ const TaskCreate = () => {
 
     try {
       setLoading(true);
-      const task = await taskService.createTask(formData);
+
+      // Create FormData for file upload support
+      const formDataToSend = new FormData();
+
+      // Append all form fields
+      Object.keys(formData).forEach(key => {
+        if (formData[key] !== null && formData[key] !== undefined && formData[key] !== '') {
+          formDataToSend.append(key, formData[key]);
+        }
+      });
+
+      // Append files if any
+      files.forEach((file, index) => {
+        formDataToSend.append(`images`, file);
+      });
+
+      const task = await taskService.createTask(formDataToSend);
       clearDraft();
       toast.success('Task created successfully!', {
         icon: '🎉',
@@ -182,11 +201,26 @@ const TaskCreate = () => {
         navigate('/my-tasks');
       }
     } catch (error) {
-      toast.error('Failed to create task. Please try again.');
+      const errorData = error.response?.data;
+      if (errorData && typeof errorData === 'object') {
+        const fieldErrors = Object.entries(errorData)
+          .map(([field, messages]) => {
+            const msg = Array.isArray(messages) ? messages.join(', ') : messages;
+            return `${field}: ${msg}`;
+          })
+          .join('\n');
+        toast.error(fieldErrors || 'Failed to create task');
+      } else {
+        toast.error('Failed to create task. Please try again.');
+      }
       console.error('Error creating task:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFilesChange = (newFiles) => {
+    setFiles(newFiles);
   };
 
   // Calculate form completion percentage
@@ -703,6 +737,30 @@ const TaskCreate = () => {
                       />
                     </div>
                   </div>
+                </div>
+
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-8"></div>
+
+                {/* Attachments Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <PhotoIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                      Attachments
+                    </h2>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">(Optional)</span>
+                  </div>
+
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Upload images, documents, or other files to help describe your task better
+                  </p>
+
+                  <FileUpload
+                    onFilesChange={handleFilesChange}
+                    maxFiles={5}
+                    maxSize={10}
+                    acceptedTypes={['image/*', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']}
+                  />
                 </div>
 
                 {/* Submit Buttons */}

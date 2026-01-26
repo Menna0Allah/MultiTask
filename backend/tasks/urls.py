@@ -32,4 +32,10 @@ urlpatterns = [
     # Statistics
     path('statistics/', views.task_statistics, name='task-statistics'),
     path('my-statistics/', views.my_task_statistics, name='my-task-statistics'),
+
+    # Saved Tasks
+    path('saved/', views.SavedTaskListCreateView.as_view(), name='saved-tasks'),
+    path('<int:task_id>/save/', views.toggle_task_saved, name='toggle-save-task'),
+    path('<int:task_id>/saved/', views.check_task_saved, name='check-task-saved'),
+    path('saved/<int:task_id>/', views.SavedTaskDeleteView.as_view(), name='unsave-task'),
 ]

@@ -153,6 +153,38 @@ const taskService = {
     const response = await api.get(API_ENDPOINTS.MY_TASK_STATISTICS);
     return response.data;
   },
+
+  /**
+   * Get saved tasks
+   */
+  getSavedTasks: async () => {
+    const response = await api.get('/tasks/saved/');
+    return response.data;
+  },
+
+  /**
+   * Toggle save/unsave task
+   */
+  toggleSaveTask: async (taskId, note = '') => {
+    const response = await api.post(`/tasks/${taskId}/save/`, { note });
+    return response.data;
+  },
+
+  /**
+   * Check if task is saved
+   */
+  checkTaskSaved: async (taskId) => {
+    const response = await api.get(`/tasks/${taskId}/saved/`);
+    return response.data;
+  },
+
+  /**
+   * Unsave a task
+   */
+  unsaveTask: async (taskId) => {
+    const response = await api.delete(`/tasks/saved/${taskId}/`);
+    return response.data;
+  },
 };
 
 export default taskService;

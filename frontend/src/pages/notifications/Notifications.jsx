@@ -5,6 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Loading from '../../components/common/Loading';
+import Skeleton, { SkeletonCard } from '../../components/common/Skeleton';
+import Empty from '../../components/common/Empty';
 import toast from 'react-hot-toast';
 import {
   BellIcon,
@@ -229,8 +231,42 @@ const Notifications = () => {
 
   if (loading && page === 1) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <Loading />
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-8">
+        <div className="container-custom max-w-5xl px-4 sm:px-6">
+          <div className="mb-8">
+            <div className="flex items-center space-x-3 mb-6">
+              <Skeleton variant="circle" className="w-14 h-14" />
+              <div className="space-y-2">
+                <Skeleton variant="title" className="w-48" />
+                <Skeleton className="w-32" />
+              </div>
+            </div>
+            <div className="grid md:grid-cols-3 gap-4">
+              <Skeleton className="h-10" />
+              <Skeleton className="h-10" />
+              <Skeleton className="h-10" />
+            </div>
+          </div>
+          <div className="space-y-6">
+            <div>
+              <Skeleton variant="title" className="w-24 mb-3" />
+              <div className="space-y-2">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-start space-x-4">
+                      <Skeleton variant="circle" className="w-12 h-12" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="w-3/4" />
+                        <Skeleton className="w-full" />
+                        <Skeleton className="w-1/4" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -426,29 +462,19 @@ const Notifications = () => {
             )}
           </div>
         ) : (
-          <Card className="text-center py-16 dark:bg-gray-800">
-            <BellSlashIcon className="w-20 h-20 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-              No notifications found
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              {searchQuery
-                ? 'Try adjusting your search or filters'
-                : "You're all caught up! Check back later for new notifications."}
-            </p>
-            {searchQuery && (
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setSearchQuery('');
-                  setFilter('all');
-                  setTypeFilter('all');
-                }}
-              >
-                Clear Filters
-              </Button>
-            )}
-          </Card>
+          <Empty
+            icon={BellSlashIcon}
+            title="No notifications found"
+            description={searchQuery
+              ? 'Try adjusting your search or filters'
+              : "You're all caught up! Check back later for new notifications."}
+            actionLabel={searchQuery ? "Clear Filters" : undefined}
+            onAction={searchQuery ? () => {
+              setSearchQuery('');
+              setFilter('all');
+              setTypeFilter('all');
+            } : undefined}
+          />
         )}
       </div>
 

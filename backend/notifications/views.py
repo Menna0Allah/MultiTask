@@ -26,7 +26,11 @@ class NotificationListView(generics.ListAPIView):
         # Filter by read/unread
         is_read = self.request.query_params.get('is_read')
         if is_read is not None:
-            queryset = queryset.filter(is_read=is_read.lower() == 'true')
+            # Handle both string ('true'/'false') and boolean values
+            if isinstance(is_read, bool):
+                queryset = queryset.filter(is_read=is_read)
+            else:
+                queryset = queryset.filter(is_read=str(is_read).lower() == 'true')
 
         # Filter by type
         notification_type = self.request.query_params.get('type')

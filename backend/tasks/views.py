@@ -8,14 +8,15 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 
-from .models import Category, Task, TaskApplication, Review
+from .models import Category, Task, TaskApplication, Review, SavedTask
 from .serializers import (
     CategorySerializer,
     TaskListSerializer,
     TaskDetailSerializer,
     TaskCreateUpdateSerializer,
     TaskApplicationSerializer,
-    ReviewSerializer
+    ReviewSerializer,
+    SavedTaskSerializer
 )
 
 
@@ -58,17 +59,24 @@ class TaskListView(generics.ListAPIView):
     
     def get_queryset(self):
         """Get tasks with optional filters"""
-        queryset = Task.objects.select_related('client', 'category').all()
-        
+        queryset = Task.objects.select_related('client', 'category').prefetch_related('required_skills').all()
+
         # Filter by budget range
         min_budget = self.request.query_params.get('min_budget')
         max_budget = self.request.query_params.get('max_budget')
-        
+
         if min_budget:
             queryset = queryset.filter(budget__gte=min_budget)
         if max_budget:
             queryset = queryset.filter(budget__lte=max_budget)
-        
+
+        # Filter by required skills
+        skills = self.request.query_params.getlist('skills[]')
+        if skills:
+            # Filter tasks that require ANY of the selected skills
+            # Using distinct() to avoid duplicate results
+            queryset = queryset.filter(required_skills__id__in=skills).distinct()
+
         return queryset
     
     @extend_schema(
@@ -82,6 +90,7 @@ class TaskListView(generics.ListAPIView):
             OpenApiParameter('is_remote', OpenApiTypes.BOOL, description='Filter remote tasks'),
             OpenApiParameter('min_budget', OpenApiTypes.FLOAT, description='Minimum budget'),
             OpenApiParameter('max_budget', OpenApiTypes.FLOAT, description='Maximum budget'),
+            OpenApiParameter('skills[]', OpenApiTypes.INT, description='Filter by skill IDs (can pass multiple)', many=True),
             OpenApiParameter('search', OpenApiTypes.STR, description='Search in title/description'),
             OpenApiParameter('ordering', OpenApiTypes.STR, description='Sort by field (created_at, budget, deadline)'),
         ]
@@ -330,17 +339,17 @@ class ApplicationAcceptView(APIView):
         # Accept application
         application.status = 'ACCEPTED'
         application.save()
-        
-        # Update task
+
+        # Update task - ALWAYS assign and move to IN_PROGRESS
         task.status = 'IN_PROGRESS'
         task.assigned_to = application.freelancer
         task.save()
-        
+
         # Reject other applications
         TaskApplication.objects.filter(
             task=task
         ).exclude(id=application_id).update(status='REJECTED')
-        
+
         return Response({
             'message': 'Application accepted successfully',
             'application': TaskApplicationSerializer(application).data
@@ -606,7 +615,7 @@ def task_statistics(request):
 def my_task_statistics(request):
     """Get current user's task statistics"""
     user = request.user
-    
+
     stats = {
         'posted_tasks': user.posted_tasks.count(),
         'open_tasks': user.posted_tasks.filter(status='OPEN').count(),
@@ -617,5 +626,118 @@ def my_task_statistics(request):
         'applications_pending': user.task_applications.filter(status='PENDING').count(),
         'tasks_completed_as_freelancer': user.assigned_tasks.filter(status='COMPLETED').count(),
     }
-    
+
     return Response(stats)
+
+
+# ==============================================================================
+# SAVED TASKS VIEWS
+# ==============================================================================
+
+class SavedTaskListCreateView(generics.ListCreateAPIView):
+    """
+    List user's saved tasks or save a new task
+    """
+    serializer_class = SavedTaskSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return SavedTask.objects.filter(
+            user=self.request.user
+        ).select_related('task', 'task__client', 'task__category')
+
+    @extend_schema(
+        summary="List saved tasks",
+        description="Get all tasks saved by the current user"
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Save a task",
+        description="Save/bookmark a task for later"
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
+
+
+class SavedTaskDeleteView(APIView):
+    """
+    Unsave/remove a saved task
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        summary="Unsave task",
+        description="Remove a task from saved tasks"
+    )
+    def delete(self, request, task_id):
+        saved_task = SavedTask.objects.filter(
+            user=request.user,
+            task_id=task_id
+        ).first()
+
+        if not saved_task:
+            return Response({
+                'error': 'Task is not in your saved list'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        saved_task.delete()
+
+        return Response({
+            'message': 'Task removed from saved list'
+        }, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    summary="Check if task is saved",
+    description="Check if a specific task is saved by the current user"
+)
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def check_task_saved(request, task_id):
+    """Check if a task is saved by the current user"""
+    is_saved = SavedTask.objects.filter(
+        user=request.user,
+        task_id=task_id
+    ).exists()
+
+    return Response({
+        'is_saved': is_saved
+    })
+
+
+@extend_schema(
+    summary="Toggle task saved status",
+    description="Save or unsave a task (toggle)"
+)
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def toggle_task_saved(request, task_id):
+    """Toggle saved status of a task"""
+    task = get_object_or_404(Task, id=task_id)
+
+    saved_task = SavedTask.objects.filter(
+        user=request.user,
+        task=task
+    ).first()
+
+    if saved_task:
+        # Unsave
+        saved_task.delete()
+        return Response({
+            'is_saved': False,
+            'message': 'Task removed from saved list'
+        })
+    else:
+        # Save
+        note = request.data.get('note', '')
+        SavedTask.objects.create(
+            user=request.user,
+            task=task,
+            note=note
+        )
+        return Response({
+            'is_saved': True,
+            'message': 'Task saved successfully'
+        }, status=status.HTTP_201_CREATED)

@@ -33,7 +33,7 @@ class ConversationListView(generics.ListAPIView):
         """Get user's conversations"""
         return Conversation.objects.filter(
             participants=self.request.user
-        ).prefetch_related('participants').order_by('-last_message_at', '-created_at')
+        ).distinct().prefetch_related('participants').order_by('-last_message_at', '-created_at')
     
     @extend_schema(
         summary="List conversations",
@@ -54,7 +54,7 @@ class ConversationDetailView(generics.RetrieveAPIView):
         """Get user's conversations"""
         return Conversation.objects.filter(
             participants=self.request.user
-        ).prefetch_related('participants', 'messages__sender')
+        ).distinct().prefetch_related('participants', 'messages__sender')
     
     def retrieve(self, request, *args, **kwargs):
         """Get conversation and mark messages as read"""
@@ -111,14 +111,31 @@ class ConversationCreateView(APIView):
             task = get_object_or_404(Task, id=task_id)
         
         # Check if conversation already exists
-        existing = Conversation.objects.filter(
-            participants=user
-        ).filter(
-            participants=participant
-        ).filter(
-            task=task
-        ).first()
-        
+        # For conversations with a task
+        if task:
+            existing = Conversation.objects.filter(
+                task=task
+            ).filter(
+                participants=user
+            ).filter(
+                participants=participant
+            ).distinct().first()
+        else:
+            # For general conversations (no task), find by participants only
+            # Get all conversations where user is a participant
+            user_convs = Conversation.objects.filter(
+                participants=user,
+                task__isnull=True
+            ).prefetch_related('participants')
+
+            # Find conversation with exactly these two participants
+            existing = None
+            for conv in user_convs:
+                participant_ids = set(conv.participants.values_list('id', flat=True))
+                if participant_ids == {user.id, participant.id}:
+                    existing = conv
+                    break
+
         if existing:
             # Return existing conversation
             serializer = ConversationDetailSerializer(
@@ -269,8 +286,8 @@ class MarkAsReadView(APIView):
 def messaging_statistics(request):
     """Get messaging stats"""
     user = request.user
-    
-    conversations = Conversation.objects.filter(participants=user)
+
+    conversations = Conversation.objects.filter(participants=user).distinct()
     
     # Count unread messages
     unread_count = Message.objects.filter(

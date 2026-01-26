@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.core.validators import URLValidator
 
 
 class User(AbstractUser):
@@ -44,8 +45,9 @@ class User(AbstractUser):
         help_text="Average rating from reviews"
     )
     total_reviews = models.IntegerField(default=0)
-    
+
     is_verified = models.BooleanField(default=False)
+    is_email_verified = models.BooleanField(default=False, help_text="Whether user's email is verified")
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -77,4 +79,64 @@ class User(AbstractUser):
     @property
     def is_freelancer(self):
         return self.user_type.lower() in ['freelancer', 'both']
-        
+
+
+class PortfolioItem(models.Model):
+    """
+    Portfolio item model for showcasing user's work
+    """
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='portfolio_items'
+    )
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    project_url = models.URLField(
+        max_length=500,
+        blank=True,
+        null=True,
+        validators=[URLValidator()],
+        help_text="Link to live project or demo"
+    )
+    image = models.ImageField(
+        upload_to='portfolio/',
+        blank=True,
+        null=True,
+        help_text="Project screenshot or image"
+    )
+    technologies = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Comma-separated list of technologies used (e.g., 'React, Node.js, PostgreSQL')"
+    )
+    date_completed = models.DateField(
+        blank=True,
+        null=True,
+        help_text="Project completion date"
+    )
+    order = models.IntegerField(
+        default=0,
+        help_text="Display order (lower numbers appear first)"
+    )
+    is_featured = models.BooleanField(
+        default=False,
+        help_text="Featured items are displayed prominently"
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'portfolio_items'
+        verbose_name = 'Portfolio Item'
+        verbose_name_plural = 'Portfolio Items'
+        ordering = ['order', '-date_completed', '-created_at']
+        indexes = [
+            models.Index(fields=['user', 'order']),
+            models.Index(fields=['user', 'is_featured']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.title}"

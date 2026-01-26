@@ -41,6 +41,12 @@ export const API_ENDPOINTS = {
   CHECK_USERNAME: '/auth/check-username/',
   CHECK_EMAIL: '/auth/check-email/',
   GOOGLE_LOGIN: '/auth/google/login/',
+  FORGOT_PASSWORD: '/auth/password-reset/',
+  RESET_PASSWORD: '/auth/password-reset/confirm/',
+  VERIFY_EMAIL: '/auth/verify-email/',
+  RESEND_VERIFICATION: '/auth/resend-verification/',
+  USERS: '/auth/users/',
+  USER_PROFILE: (username) => `/auth/users/${username}/`,
 
   // Tasks
   TASKS: '/tasks/',
@@ -79,6 +85,16 @@ export const API_ENDPOINTS = {
   CONVERSATION_MESSAGES: (id) => `/messaging/conversations/${id}/messages/`,
   SEND_MESSAGE: (id) => `/messaging/conversations/${id}/messages/send/`,
   MARK_AS_READ: (id) => `/messaging/conversations/${id}/mark-read/`,
+  MESSAGING_STATS: '/messaging/stats/',
+
+  // Notifications
+  NOTIFICATIONS: '/notifications/',
+  NOTIFICATION_UNREAD_COUNT: '/notifications/unread-count/',
+  NOTIFICATION_READ: (id) => `/notifications/${id}/read/`,
+  NOTIFICATION_DELETE: (id) => `/notifications/${id}/delete/`,
+  NOTIFICATION_MARK_ALL_READ: '/notifications/mark-all-read/',
+  NOTIFICATION_CLEAR_ALL: '/notifications/clear-all/',
+  NOTIFICATION_PREFERENCES: '/notifications/preferences/',
 
   // Reviews, stats, etc.
   TASK_REVIEW: (id) => `/tasks/${id}/review/`,

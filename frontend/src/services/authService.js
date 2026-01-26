@@ -119,6 +119,58 @@ const authService = {
     const response = await api.get(`${API_ENDPOINTS.CHECK_EMAIL}?email=${email}`);
     return response.data.available;
   },
+
+  /**
+   * Request password reset
+   */
+  forgotPassword: async (email) => {
+    const response = await api.post(API_ENDPOINTS.FORGOT_PASSWORD, { email });
+    return response.data;
+  },
+
+  /**
+   * Reset password with token
+   */
+  resetPassword: async (uid, token, newPassword) => {
+    const response = await api.post(API_ENDPOINTS.RESET_PASSWORD, {
+      uid,
+      token,
+      new_password: newPassword,
+      new_password2: newPassword,
+    });
+    return response.data;
+  },
+
+  /**
+   * Verify email with token
+   */
+  verifyEmail: async (token) => {
+    const response = await api.post(API_ENDPOINTS.VERIFY_EMAIL, { token });
+    return response.data;
+  },
+
+  /**
+   * Resend verification email
+   */
+  resendVerificationEmail: async (email) => {
+    const response = await api.post(API_ENDPOINTS.RESEND_VERIFICATION, { email });
+    return response.data;
+  },
+
+  /**
+   * Delete user account
+   */
+  deleteAccount: async (password, confirmation) => {
+    const response = await api.post('/auth/delete-account/', {
+      password,
+      confirmation,
+    });
+    // Clear local storage on successful deletion
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+    return response.data;
+  },
 };
 
 export default authService;

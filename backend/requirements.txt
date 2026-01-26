@@ -47,3 +47,6 @@ pytz==2025.2
 requests==2.32.4
 PyJWT==2.10.1
 Faker==37.4.2
+
+# Payment Processing
+stripe>=7.0.0bleach==6.3.0

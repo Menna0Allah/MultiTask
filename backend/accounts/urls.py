@@ -12,6 +12,14 @@ from .views import (
     check_username,
     check_email,
     GoogleLoginView,
+    ResendVerificationEmailView,
+    VerifyEmailView,
+    PasswordResetRequestView,
+    PasswordResetConfirmView,
+    PortfolioItemListCreateView,
+    PortfolioItemDetailView,
+    UserPortfolioListView,
+    DeleteAccountView,
 )
 
 urlpatterns = [
@@ -35,9 +43,25 @@ urlpatterns = [
     # Helper endpoints
     path('check-username/', check_username, name='check-username'),
     path('check-email/', check_email, name='check-email'),
-    
+
+    # Email verification
+    path('resend-verification/', ResendVerificationEmailView.as_view(), name='resend-verification'),
+    path('verify-email/', VerifyEmailView.as_view(), name='verify-email'),
+
+    # Password reset
+    path('password-reset/', PasswordResetRequestView.as_view(), name='password-reset'),
+    path('password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
+
+    # Account deletion
+    path('delete-account/', DeleteAccountView.as_view(), name='delete-account'),
+
     # Social authentication (Google OAuth)
     path('google/', include('dj_rest_auth.registration.urls')),
     path('google/login/', GoogleLoginView.as_view(), name='google_login'),
     path('google/callback/', GoogleLoginView.as_view(), name='google_callback'),
+
+    # Portfolio
+    path('portfolio/', PortfolioItemListCreateView.as_view(), name='portfolio-list-create'),
+    path('portfolio/<int:pk>/', PortfolioItemDetailView.as_view(), name='portfolio-detail'),
+    path('users/<str:username>/portfolio/', UserPortfolioListView.as_view(), name='user-portfolio'),
 ]

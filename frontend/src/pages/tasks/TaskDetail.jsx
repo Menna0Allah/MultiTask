@@ -2,12 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import taskService from '../../services/taskService';
+import paymentService from '../../services/paymentService';
+import reviewService from '../../services/reviewService';
 import Card from '../../components/common/Card';
 import Loading from '../../components/common/Loading';
 import Badge from '../../components/common/Badge';
 import Avatar from '../../components/common/Avatar';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
+import PaymentModal from '../../components/payments/PaymentModal';
+import PaymentTimeline from '../../components/payments/PaymentTimeline';
+import ReviewForm from '../../components/reviews/ReviewForm';
+import ReviewList from '../../components/reviews/ReviewList';
+import StarRating from '../../components/common/StarRating';
 import toast from 'react-hot-toast';
 import {
   MapPinIcon,
@@ -19,7 +27,17 @@ import {
   EyeIcon,
   UserGroupIcon,
   ExclamationTriangleIcon,
+  BanknotesIcon,
+  BookmarkIcon,
+  ShareIcon,
+  FlagIcon,
+  ShieldCheckIcon,
+  LockClosedIcon,
+  InformationCircleIcon,
 } from '@heroicons/react/24/outline';
+import {
+  BookmarkIcon as BookmarkSolidIcon,
+} from '@heroicons/react/24/solid';
 import { formatCurrency, formatDate, formatRelativeTime } from '../../utils/helpers';
 
 const TaskDetail = () => {
@@ -45,9 +63,24 @@ const TaskDetail = () => {
   const [canceling, setCanceling] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [rejecting, setRejecting] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentIntent, setPaymentIntent] = useState(null);
+  const [isCreatingPayment, setIsCreatingPayment] = useState(false);
+  const [isReleasingPayment, setIsReleasingPayment] = useState(false);
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [showReleasePaymentModal, setShowReleasePaymentModal] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
 
   useEffect(() => {
     fetchTask();
+    fetchReviews();
   }, [id]);
 
   const fetchTask = async () => {
@@ -117,7 +150,7 @@ const TaskDetail = () => {
     else if (completedTasks >= 5) score += 5;
 
     // Proposal quality (15 points) - based on length and detail
-    const proposalLength = application.proposal_text?.length || 0;
+    const proposalLength = application.proposal?.length || 0;
     if (proposalLength >= 300) score += 15;
     else if (proposalLength >= 200) score += 10;
     else if (proposalLength >= 100) score += 5;
@@ -155,17 +188,146 @@ const TaskDetail = () => {
   const handleAcceptConfirm = async () => {
     try {
       setAccepting(true);
-      await taskService.acceptApplication(selectedApplication.id);
-      toast.success('Application accepted successfully!');
+
+      // Accept application directly (payment happens after completion)
+      const acceptResponse = await taskService.acceptApplication(selectedApplication.id);
+      console.log('Accept response:', acceptResponse);
+
+      toast.success('Application accepted successfully! Task is now in progress.');
       setShowAcceptModal(false);
       setSelectedApplication(null);
       fetchTask();
       fetchApplications();
     } catch (error) {
-      toast.error('Failed to accept application');
+      console.error('Error accepting application:', error);
+      const errorMessage = error.response?.data?.error || error.response?.data?.detail || error.message || 'Failed to accept application';
+      toast.error(errorMessage);
     } finally {
       setAccepting(false);
     }
+  };
+
+  const handlePayNow = async () => {
+    try {
+      setIsCreatingPayment(true);
+      console.log('Creating payment for completed task:', task.id);
+      console.log('Task assigned_to:', task.assigned_to);
+
+      // Fetch applications directly (don't rely on state)
+      let appsToUse = applications;
+
+      if (!appsToUse || appsToUse.length === 0) {
+        console.log('Applications not loaded, fetching directly...');
+        try {
+          const data = await taskService.getTaskApplications(id);
+          appsToUse = data.results || data || [];
+          console.log('Fetched applications:', appsToUse);
+
+          // Also update state for UI
+          setApplications(appsToUse);
+        } catch (fetchError) {
+          console.error('Error fetching applications:', fetchError);
+          toast.error('Failed to load applications. Please refresh the page.');
+          return;
+        }
+      }
+
+      console.log('Using applications array:', appsToUse);
+
+      if (!appsToUse || appsToUse.length === 0) {
+        toast.error('No applications found for this task. Please refresh the page.');
+        return;
+      }
+
+      // First try to find an accepted application
+      let applicationToPay = appsToUse.find(app => app.status === 'ACCEPTED');
+      console.log('Found accepted application:', applicationToPay);
+
+      // If no accepted application, find the one from the assigned freelancer
+      if (!applicationToPay && task.assigned_to) {
+        console.log('Looking for application from assigned freelancer ID:', task.assigned_to.id);
+
+        // Try different comparison methods
+        applicationToPay = appsToUse.find(app => {
+          console.log(`Comparing app.freelancer.id (${app.freelancer.id}) with task.assigned_to.id (${task.assigned_to.id})`);
+          return app.freelancer.id === task.assigned_to.id ||
+                 app.freelancer.id == task.assigned_to.id ||
+                 app.freelancer.id === task.assigned_to ||
+                 String(app.freelancer.id) === String(task.assigned_to.id);
+        });
+
+        console.log('Found application from assigned freelancer:', applicationToPay);
+
+        if (!applicationToPay) {
+          // Last resort: just take the first application if there's only one
+          if (appsToUse.length === 1) {
+            console.log('Only one application exists, using it');
+            applicationToPay = appsToUse[0];
+          } else {
+            toast.error('No application found from the assigned freelancer.');
+            console.error('Applications:', appsToUse);
+            console.error('Task assigned_to:', task.assigned_to);
+            return;
+          }
+        }
+      }
+
+      // If still no application found
+      if (!applicationToPay) {
+        toast.error('Task must be assigned to a freelancer before payment');
+        return;
+      }
+
+      console.log('Using application:', applicationToPay.id);
+      const paymentData = await paymentService.createPaymentIntent(applicationToPay.id);
+      console.log('Payment intent created:', paymentData);
+
+      // Set the selected application so the PaymentModal can render
+      setSelectedApplication(applicationToPay);
+      setPaymentIntent(paymentData);
+      setShowPaymentModal(true);
+    } catch (error) {
+      console.error('Error creating payment:', error);
+      const errorMessage = error.response?.data?.error || 'Failed to create payment';
+
+      // If payment already exists, show info instead of error
+      if (errorMessage.includes('already funded') || errorMessage.includes('already released')) {
+        toast.success('Payment already completed for this task!');
+        // Refresh to show updated status
+        fetchTask();
+      } else {
+        toast.error(errorMessage);
+      }
+    } finally {
+      setIsCreatingPayment(false);
+    }
+  };
+
+  const handlePaymentSuccess = async (paymentIntentResult) => {
+    try {
+      console.log('Payment succeeded:', paymentIntentResult);
+      toast.success('Payment successful! Funds will be transferred to freelancer.');
+
+      setShowPaymentModal(false);
+      setPaymentIntent(null);
+      setSelectedApplication(null);
+
+      // Refresh task data to show updated payment status
+      await fetchTask();
+      if (user?.id === task?.client?.id) {
+        await fetchApplications();
+      }
+    } catch (error) {
+      console.error('Error after payment:', error);
+      toast.error('Payment succeeded. Please refresh to see updated status.');
+    }
+  };
+
+  const handlePaymentCancel = () => {
+    setShowPaymentModal(false);
+    setPaymentIntent(null);
+    setSelectedApplication(null);
+    toast('Payment cancelled. You can retry when ready.');
   };
 
   const handleRejectApplication = (application) => {
@@ -209,21 +371,33 @@ const TaskDetail = () => {
       setShowApplyModal(false);
       fetchTask(); // Refresh task data
     } catch (error) {
-      toast.error('Failed to submit application');
+      const errorMessage = error.response?.data?.detail ||
+                          error.response?.data?.error ||
+                          error.response?.data?.message ||
+                          (error.response?.data && typeof error.response.data === 'object'
+                            ? Object.values(error.response.data).flat().join(', ')
+                            : 'Failed to submit application');
+      toast.error(errorMessage);
     } finally {
       setApplying(false);
     }
   };
 
-  const handleComplete = async () => {
-    if (window.confirm('Mark this task as completed?')) {
-      try {
-        await taskService.completeTask(id);
-        toast.success('Task marked as completed');
-        fetchTask();
-      } catch (error) {
-        toast.error('Failed to complete task');
-      }
+  const handleComplete = () => {
+    setShowCompleteModal(true);
+  };
+
+  const handleCompleteConfirm = async () => {
+    try {
+      setCompleting(true);
+      await taskService.completeTask(id);
+      toast.success('Task marked as completed');
+      setShowCompleteModal(false);
+      fetchTask();
+    } catch (error) {
+      toast.error('Failed to complete task');
+    } finally {
+      setCompleting(false);
     }
   };
 
@@ -238,6 +412,124 @@ const TaskDetail = () => {
       toast.error('Failed to cancel task');
     } finally {
       setCanceling(false);
+    }
+  };
+
+  const handleReleasePayment = () => {
+    if (!task.escrow?.escrow_id) {
+      toast.error('No escrow found for this task');
+      return;
+    }
+    setShowReleasePaymentModal(true);
+  };
+
+  const handleReleasePaymentConfirm = async () => {
+    try {
+      setIsReleasingPayment(true);
+      await paymentService.releaseEscrow(task.escrow.escrow_id);
+      toast.success('Payment released successfully!');
+      setShowReleasePaymentModal(false);
+      fetchTask();
+    } catch (error) {
+      console.error('Error releasing payment:', error);
+      toast.error(error.response?.data?.error || 'Failed to release payment');
+    } finally {
+      setIsReleasingPayment(false);
+    }
+  };
+
+  const handleBookmark = async () => {
+    if (!isAuthenticated) {
+      toast.error('Please login to save tasks');
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const response = await taskService.toggleSaveTask(id);
+      setIsBookmarked(response.is_saved);
+      toast.success(response.message);
+    } catch (error) {
+      console.error('Error toggling bookmark:', error);
+      toast.error('Failed to save task');
+    }
+  };
+
+  // Check if task is bookmarked on load
+  useEffect(() => {
+    const checkBookmarkStatus = async () => {
+      if (isAuthenticated && task) {
+        try {
+          const response = await taskService.checkTaskSaved(id);
+          setIsBookmarked(response.is_saved);
+        } catch (error) {
+          // Silently fail - not critical
+        }
+      }
+    };
+    checkBookmarkStatus();
+  }, [isAuthenticated, task, id]);
+
+  const handleShare = () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      navigator.share({
+        title: task.title,
+        text: `Check out this task: ${task.title}`,
+        url: url,
+      }).catch(() => {
+        // Fallback to copy to clipboard
+        navigator.clipboard.writeText(url);
+        toast.success('Link copied to clipboard!');
+      });
+    } else {
+      navigator.clipboard.writeText(url);
+      toast.success('Link copied to clipboard!');
+    }
+  };
+
+  const handleReport = () => {
+    setShowReportModal(true);
+  };
+
+  const fetchReviews = async () => {
+    try {
+      setLoadingReviews(true);
+      const data = await reviewService.getTaskReviews(id);
+      setReviews(data.results || data || []);
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+      // Don't show error toast for reviews - it's not critical
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
+  const handleSubmitReview = async (reviewData) => {
+    try {
+      setSubmittingReview(true);
+      await reviewService.submitTaskReview(id, reviewData);
+      toast.success('Review submitted successfully!');
+      setShowReviewForm(false);
+      fetchReviews(); // Refresh reviews
+      fetchTask(); // Refresh task to update average rating
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      const errorMessage = error.response?.data?.detail || error.response?.data?.error || 'Failed to submit review';
+      toast.error(errorMessage);
+      throw error; // Re-throw so ReviewForm can handle it
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const handleReviewHelpful = async (reviewId, isHelpful) => {
+    try {
+      await reviewService.markReviewHelpful(reviewId, isHelpful);
+      toast.success('Thank you for your feedback!');
+    } catch (error) {
+      console.error('Error marking review as helpful:', error);
+      // Don't show error - this feature might not be implemented yet
     }
   };
 
@@ -257,7 +549,7 @@ const TaskDetail = () => {
   const canApply = task.can_apply && !task.is_applied;
 
   return (
-    <div className="bg-gray-50 min-h-screen py-12">
+    <div className="force-light-mode bg-gray-50 min-h-screen py-12">
       <div className="container-custom max-w-7xl px-6">
         {/* Breadcrumb */}
         <nav className="mb-8 flex items-center space-x-2 text-sm">
@@ -273,63 +565,121 @@ const TaskDetail = () => {
           <div className="lg:col-span-2 space-y-6">
             {/* Task Header */}
             <Card>
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <Badge variant={task.status === 'OPEN' ? 'success' : 'gray'}>
-                      {task.status}
-                    </Badge>
-                    {task.is_remote && <Badge variant="info">Remote</Badge>}
-                    <Badge variant="primary">{task.task_type}</Badge>
-                  </div>
-                  
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                    {task.title}
-                  </h1>
+              {/* Status Badges and Actions */}
+              <div className="flex items-start justify-between mb-6 pb-4 border-b border-gray-200">
+                <div className="flex items-center flex-wrap gap-2">
+                  <Badge variant={task.status === 'OPEN' ? 'success' : task.status === 'IN_PROGRESS' ? 'info' : task.status === 'COMPLETED' ? 'success' : 'gray'}>
+                    {task.status}
+                  </Badge>
+                  {task.is_remote && <Badge variant="info">🌍 Remote</Badge>}
+                  <Badge variant="primary">{task.task_type}</Badge>
 
-                  <div className="flex items-center space-x-4 text-sm">
-                    <div className="flex items-center space-x-1 text-gray-500">
-                      <ClockIcon className="w-4 h-4" />
-                      <span>{formatRelativeTime(task.created_at)}</span>
-                    </div>
-                    <span className="text-gray-300">•</span>
-                    <div className="flex items-center space-x-1 text-blue-600">
-                      <EyeIcon className="w-4 h-4" />
-                      <span className="font-medium">{task.views_count}</span>
-                    </div>
-                    <span className="text-gray-300">•</span>
-                    <div className="flex items-center space-x-1 text-green-600">
-                      <UserGroupIcon className="w-4 h-4" />
-                      <span className="font-medium">{task.applications_count}</span>
-                    </div>
-                  </div>
+                  {/* Payment Status Badge with icon */}
+                  {task.payment_status === 'escrowed' && (
+                    <Badge variant="warning">
+                      <LockClosedIcon className="w-3 h-3 inline mr-1" />
+                      Payment Secured in Escrow
+                    </Badge>
+                  )}
+                  {task.payment_status === 'released' && (
+                    <Badge variant="success">
+                      <CheckCircleIcon className="w-3 h-3 inline mr-1" />
+                      Payment Released
+                    </Badge>
+                  )}
                 </div>
 
-                {isOwner && task.status === 'OPEN' && (
-                  <div className="flex space-x-3">
-                    <Link to={`/tasks/${task.id}/edit`}>
-                      <button className="inline-flex items-center px-6 py-2.5 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        Edit Task
-                      </button>
-                    </Link>
+                {/* Action Buttons */}
+                <div className="flex items-center gap-2">
+                  {!isOwner && (
                     <button
-                      onClick={() => setShowCancelModal(true)}
-                      className="inline-flex items-center px-6 py-2.5 bg-white border-2 border-red-500 text-red-600 rounded-lg font-semibold hover:bg-red-50 hover:border-red-600 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                      onClick={handleBookmark}
+                      className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                      title={isBookmarked ? 'Remove bookmark' : 'Bookmark task'}
                     >
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Cancel Task
+                      {isBookmarked ? (
+                        <BookmarkSolidIcon className="w-5 h-5 text-primary-600" />
+                      ) : (
+                        <BookmarkIcon className="w-5 h-5 text-gray-600" />
+                      )}
                     </button>
-                  </div>
-                )}
+                  )}
+                  <button
+                    onClick={handleShare}
+                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                    title="Share task"
+                  >
+                    <ShareIcon className="w-5 h-5 text-gray-600" />
+                  </button>
+                  {!isOwner && (
+                    <button
+                      onClick={handleReport}
+                      className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                      title="Report task"
+                    >
+                      <FlagIcon className="w-5 h-5 text-gray-600" />
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* Task Info */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+              {/* Title and Metadata */}
+              <div className="mb-6">
+                <h1 className="text-4xl font-bold text-gray-900 mb-4 break-words leading-tight">
+                  {task.title}
+                </h1>
+
+                <div className="flex items-center flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600">
+                  <div className="flex items-center space-x-2">
+                    <ClockIcon className="w-4 h-4" />
+                    <span>Posted {formatRelativeTime(task.created_at)}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <EyeIcon className="w-4 h-4 text-blue-600" />
+                    <span className="font-medium">{task.views_count} views</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <UserGroupIcon className="w-4 h-4 text-green-600" />
+                    <span className="font-medium">{task.applications_count} {task.applications_count === 1 ? 'application' : 'applications'}</span>
+                  </div>
+                  {task.category && (
+                    <div className="flex items-center space-x-2">
+                      <span className="text-gray-400">in</span>
+                      <Badge variant="primary" size="sm">{task.category.name}</Badge>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Owner Actions */}
+              {isOwner && task.status === 'OPEN' && (
+                <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-200">
+                  <Link to={`/tasks/${task.id}/edit`} className="flex-1 sm:flex-initial">
+                    <button className="w-full inline-flex items-center justify-center px-6 py-3 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-all duration-200 shadow-md hover:shadow-lg">
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Edit Task
+                    </button>
+                  </Link>
+                  <button
+                    onClick={() => setShowCancelModal(true)}
+                    className="flex-1 sm:flex-initial inline-flex items-center justify-center px-6 py-3 bg-white border-2 border-red-500 text-red-600 rounded-lg font-semibold hover:bg-red-50 hover:border-red-600 transition-all duration-200 shadow-md hover:shadow-lg"
+                  >
+                    <XMarkIcon className="w-4 h-4 mr-2" />
+                    Cancel Task
+                  </button>
+                </div>
+              )}
+            </Card>
+
+            {/* Task Info - Key Details */}
+            <Card>
+              <div className="border-b border-gray-200 pb-4 mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Project Details</h2>
+                <p className="text-sm text-gray-500 mt-1">Key information about this task</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="flex items-start space-x-3">
                   <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
                     <CurrencyDollarIcon className="w-5 h-5 text-green-600" />
@@ -390,7 +740,7 @@ const TaskDetail = () => {
                 <h2 className="text-xl font-bold text-gray-900">Task Description</h2>
                 <p className="text-sm text-gray-500 mt-1">Detailed requirements and expectations</p>
               </div>
-              <div className="prose max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed">
+              <div className="prose max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed break-words overflow-hidden">
                 {task.description}
               </div>
 
@@ -433,6 +783,179 @@ const TaskDetail = () => {
                     </div>
                   ))}
                 </div>
+              </Card>
+            )}
+
+            {/* Payment Security & Trust Section */}
+            {task.requires_payment && (
+              <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="p-3 bg-blue-600 rounded-xl">
+                    <ShieldCheckIcon className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Secure Payment Protection</h3>
+                    <p className="text-gray-700">
+                      Your payment is protected by our secure escrow system
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <span className="text-blue-600 font-bold text-lg">1</span>
+                      </div>
+                      <h4 className="font-semibold text-gray-900">Secure Escrow</h4>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Funds are held securely until work is completed
+                    </p>
+                  </div>
+
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <span className="text-green-600 font-bold text-lg">2</span>
+                      </div>
+                      <h4 className="font-semibold text-gray-900">Work Delivery</h4>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Freelancer completes and delivers the work
+                    </p>
+                  </div>
+
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                        <span className="text-purple-600 font-bold text-lg">3</span>
+                      </div>
+                      <h4 className="font-semibold text-gray-900">Payment Release</h4>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      You approve and payment is released to freelancer
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg p-4 border border-blue-200">
+                  <div className="flex items-start gap-3">
+                    <InformationCircleIcon className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-900 mb-2">Fee Structure</h4>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Task Budget:</span>
+                          <span className="font-semibold">{formatCurrency(task.budget)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Platform Fee (15%):</span>
+                          <span className="font-semibold">{formatCurrency(task.budget * 0.15)}</span>
+                        </div>
+                        <div className="flex justify-between pt-2 border-t border-gray-200">
+                          <span className="text-gray-900 font-medium">Freelancer Receives:</span>
+                          <span className="font-bold text-green-600">{formatCurrency(task.budget * 0.85)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center gap-4 text-sm text-gray-700">
+                  <div className="flex items-center gap-2">
+                    <LockClosedIcon className="w-4 h-4 text-green-600" />
+                    <span>256-bit Encryption</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <ShieldCheckIcon className="w-4 h-4 text-green-600" />
+                    <span>PCI DSS Compliant</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircleIcon className="w-4 h-4 text-green-600" />
+                    <span>Money-back Guarantee</span>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Reviews Section - Only for completed tasks */}
+            {task.status === 'COMPLETED' && (
+              <Card>
+                <div className="border-b border-gray-200 pb-4 mb-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">Reviews & Ratings</h2>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}
+                      </p>
+                    </div>
+                    {task.average_rating > 0 && (
+                      <div className="flex items-center gap-2">
+                        <StarRating
+                          value={task.average_rating}
+                          readOnly
+                          showValue
+                          totalReviews={reviews.length}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Review Form - Show if user is eligible to review */}
+                {isOwner && task.assigned_to && !showReviewForm && !reviews.some(r => r.reviewer?.id === user?.id) && (
+                  <div className="mb-6">
+                    <button
+                      onClick={() => setShowReviewForm(true)}
+                      className="w-full px-6 py-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-2 border-dashed border-purple-300 dark:border-purple-700 rounded-xl hover:border-purple-400 dark:hover:border-purple-600 transition-all group"
+                    >
+                      <div className="flex items-center justify-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <StarRating value={5} readOnly size="sm" />
+                        </div>
+                        <div className="text-left">
+                          <p className="font-semibold text-gray-900 dark:text-white">
+                            Share Your Experience
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Rate your experience with {task.assigned_to.username}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                )}
+
+                {/* Review Form */}
+                {showReviewForm && (
+                  <div className="mb-6 p-6 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        Write a Review
+                      </h3>
+                      <button
+                        onClick={() => setShowReviewForm(false)}
+                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      >
+                        <XMarkIcon className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <ReviewForm
+                      onSubmit={handleSubmitReview}
+                      loading={submittingReview}
+                      placeholder={`How was your experience working with ${task.assigned_to?.username}?`}
+                    />
+                  </div>
+                )}
+
+                {/* Reviews List */}
+                <ReviewList
+                  reviews={reviews}
+                  loading={loadingReviews}
+                  showHelpful={true}
+                  onHelpful={handleReviewHelpful}
+                />
               </Card>
             )}
 
@@ -538,8 +1061,8 @@ const TaskDetail = () => {
                               <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">
                                 Proposal
                               </p>
-                              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                                {application.proposal_text || 'No proposal provided'}
+                              <p className="text-gray-700 dark:text-gray-300 leading-relaxed break-words overflow-hidden">
+                                {application.proposal || 'No proposal provided'}
                               </p>
                             </div>
 
@@ -677,6 +1200,11 @@ const TaskDetail = () => {
               )}
             </Card>
 
+            {/* Payment Timeline */}
+            {task.requires_payment && (isOwner || task.assigned_to?.id === user?.id) && (
+              <PaymentTimeline task={task} />
+            )}
+
             {/* Actions */}
             {canApply && (
               <Card className="bg-gradient-to-br from-primary-50 to-primary-100 border-primary-200">
@@ -721,6 +1249,52 @@ const TaskDetail = () => {
                 >
                   <CheckCircleIcon className="w-5 h-5 mr-2" />
                   Mark as Completed
+                </button>
+              </Card>
+            )}
+
+            {/* Pay Now Card - Show when task is completed but not paid yet */}
+            {isOwner && task.status === 'COMPLETED' && task.requires_payment &&
+             !['escrowed', 'released'].includes(task.payment_status) && (
+              <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <BanknotesIcon className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <h3 className="font-bold text-gray-900">Pay Freelancer</h3>
+                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  Task completed! Pay the freelancer for their work.
+                </p>
+                {task.assigned_to && (
+                  <div className="bg-white rounded-lg p-3 mb-4 border border-blue-200">
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-600">Payment Amount:</span>
+                      <span className="font-semibold">{task.final_amount || task.budget} EGP</span>
+                    </div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-600">Platform Fee (15%):</span>
+                      <span className="font-semibold">{((task.final_amount || task.budget) * 0.15).toFixed(2)} EGP</span>
+                    </div>
+                    <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
+                      <span className="text-gray-600">Freelancer Receives:</span>
+                      <span className="font-bold text-green-600">{((task.final_amount || task.budget) * 0.85).toFixed(2)} EGP</span>
+                    </div>
+                  </div>
+                )}
+                <button
+                  onClick={handlePayNow}
+                  disabled={isCreatingPayment}
+                  className="w-full inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isCreatingPayment ? (
+                    <>Creating Payment...</>
+                  ) : (
+                    <>
+                      <BanknotesIcon className="w-5 h-5 mr-2" />
+                      Pay Now
+                    </>
+                  )}
                 </button>
               </Card>
             )}
@@ -895,84 +1469,18 @@ const TaskDetail = () => {
           </div>
         )}
 
-        {/* Cancel Confirmation Modal */}
-        {showCancelModal && (
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn"
-            onClick={(e) => {
-              if (e.target === e.currentTarget && !canceling) {
-                setShowCancelModal(false);
-              }
-            }}
-          >
-            <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl transform transition-all animate-scaleIn">
-              <div className="p-8">
-                {/* Warning Icon with pulse animation */}
-                <div className="flex justify-center mb-6">
-                  <div className="relative">
-                    <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-red-200 rounded-full flex items-center justify-center shadow-lg">
-                      <ExclamationTriangleIcon className="w-12 h-12 text-red-600" />
-                    </div>
-                    <div className="absolute inset-0 bg-red-400 rounded-full animate-ping opacity-20"></div>
-                  </div>
-                </div>
-
-                {/* Title */}
-                <h2 className="text-2xl font-bold text-gray-900 text-center mb-3">
-                  Cancel This Task?
-                </h2>
-
-                {/* Description */}
-                <p className="text-gray-600 text-center mb-6 leading-relaxed">
-                  This action cannot be undone. All pending applications will be automatically rejected.
-                </p>
-
-                {/* Task Info Card */}
-                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-5 mb-6 border-2 border-gray-200">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs text-gray-500 font-medium mb-1">Task Title</p>
-                      <p className="font-bold text-gray-900 leading-tight">{task.title}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Buttons */}
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={() => setShowCancelModal(false)}
-                    disabled={canceling}
-                    className="flex-1 px-6 py-3.5 bg-white border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                  >
-                    Keep Task
-                  </button>
-                  <button
-                    onClick={handleCancelConfirm}
-                    disabled={canceling}
-                    className="flex-1 px-6 py-3.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-semibold hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
-                  >
-                    {canceling ? (
-                      <span className="flex items-center justify-center">
-                        <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Canceling...
-                      </span>
-                    ) : (
-                      'Yes, Cancel Task'
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Cancel Confirmation Dialog */}
+        <ConfirmDialog
+          isOpen={showCancelModal}
+          onClose={() => setShowCancelModal(false)}
+          onConfirm={handleCancelConfirm}
+          title="Cancel This Task?"
+          message={`This action cannot be undone. All pending applications will be automatically rejected. Task: "${task?.title}"`}
+          confirmText="Yes, Cancel Task"
+          cancelText="Keep Task"
+          variant="danger"
+          loading={canceling}
+        />
 
         {/* Accept Application Confirmation Modal */}
         {showAcceptModal && selectedApplication && (
@@ -1064,81 +1572,289 @@ const TaskDetail = () => {
           </div>
         )}
 
-        {/* Reject Application Confirmation Modal */}
-        {showRejectModal && selectedApplication && (
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn"
-            onClick={(e) => {
-              if (e.target === e.currentTarget && !rejecting) {
-                setShowRejectModal(false);
-              }
+        {/* Reject Application Confirmation Dialog */}
+        {selectedApplication && (
+          <ConfirmDialog
+            isOpen={showRejectModal}
+            onClose={() => {
+              setShowRejectModal(false);
+              setSelectedApplication(null);
             }}
-          >
+            onConfirm={handleRejectConfirm}
+            title="Reject This Application?"
+            message={`This will decline the application from ${selectedApplication.freelancer?.username} and notify them.`}
+            confirmText="Yes, Reject Application"
+            cancelText="Cancel"
+            variant="danger"
+            loading={rejecting}
+          />
+        )}
+
+        {/* Payment Modal */}
+        {showPaymentModal && paymentIntent && selectedApplication && (
+          <PaymentModal
+            isOpen={showPaymentModal}
+            onClose={handlePaymentCancel}
+            clientSecret={paymentIntent.client_secret}
+            amount={parseFloat(paymentIntent.amount)}
+            platformFee={parseFloat(paymentIntent.platform_fee)}
+            onSuccess={handlePaymentSuccess}
+            taskInfo={{
+              id: task.id,
+              title: task.title,
+            }}
+          />
+        )}
+
+        {/* Complete Task Modal */}
+        {showCompleteModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
             <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full shadow-2xl transform transition-all animate-scaleIn">
               <div className="p-8">
-                {/* Warning Icon */}
+                {/* Success Icon */}
                 <div className="flex justify-center mb-6">
                   <div className="relative">
-                    <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-red-200 dark:from-red-900/40 dark:to-red-900/40 rounded-full flex items-center justify-center shadow-lg">
-                      <XMarkIcon className="w-12 h-12 text-red-600 dark:text-red-400" />
+                    <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-emerald-200 dark:from-green-900/40 dark:to-emerald-900/40 rounded-full flex items-center justify-center shadow-lg">
+                      <CheckCircleIcon className="w-12 h-12 text-green-600 dark:text-green-400" />
                     </div>
-                    <div className="absolute inset-0 bg-red-400 rounded-full animate-ping opacity-20"></div>
+                    <div className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-20"></div>
                   </div>
                 </div>
 
                 {/* Title */}
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-3">
-                  Reject This Application?
+                  Mark Task as Complete?
                 </h2>
 
                 {/* Description */}
-                <p className="text-gray-600 dark:text-gray-300 text-center mb-6 leading-relaxed">
-                  This will decline the application and notify the freelancer.
+                <p className="text-gray-600 dark:text-gray-300 text-center mb-2 leading-relaxed">
+                  Confirm that this task has been completed successfully.
                 </p>
 
-                {/* Freelancer Info Card */}
-                <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-750 rounded-xl p-5 mb-6 border-2 border-gray-200 dark:border-gray-600">
-                  <div className="flex items-center gap-3">
-                    <Avatar user={selectedApplication.freelancer} size="md" />
-                    <div className="flex-1">
-                      <p className="font-bold text-gray-900 dark:text-white">
-                        {selectedApplication.freelancer?.username}
-                      </p>
-                      <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                        <span className="text-yellow-500">★</span>
-                        <span className="ml-1 font-semibold">
-                          {selectedApplication.freelancer?.average_rating || 0}
-                        </span>
+                {/* Payment Notice */}
+                {task.requires_payment && task.payment_status === 'not_required' && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+                    <div className="flex items-start gap-3">
+                      <BanknotesIcon className="w-5 h-5 text-blue-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-1">
+                          Payment After Completion
+                        </p>
+                        <p className="text-xs text-blue-700 dark:text-blue-400">
+                          After marking complete, you'll be able to pay the freelancer for their work.
+                        </p>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* Task Info Card */}
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-750 rounded-xl p-5 mb-6 border-2 border-gray-200 dark:border-gray-600">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Task</p>
+                    <p className="font-bold text-gray-900 dark:text-white">{task.title}</p>
+                    {task.assigned_to && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                        Completed by: <span className="font-semibold">{task.assigned_to.username}</span>
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 {/* Buttons */}
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button
-                    onClick={() => setShowRejectModal(false)}
-                    disabled={rejecting}
+                    onClick={() => setShowCompleteModal(false)}
+                    disabled={completing}
                     className="flex-1 px-6 py-3.5 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleRejectConfirm}
-                    disabled={rejecting}
-                    className="flex-1 px-6 py-3.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-semibold hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+                    onClick={handleCompleteConfirm}
+                    disabled={completing}
+                    className="flex-1 px-6 py-3.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
                   >
-                    {rejecting ? (
+                    {completing ? (
                       <span className="flex items-center justify-center">
                         <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        Rejecting...
+                        Completing...
                       </span>
                     ) : (
-                      'Yes, Reject Application'
+                      <>
+                        <CheckCircleIcon className="w-5 h-5 inline mr-2" />
+                        Yes, Mark as Complete
+                      </>
                     )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Release Payment Modal */}
+        {showReleasePaymentModal && task.escrow && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full shadow-2xl transform transition-all animate-scaleIn">
+              <div className="p-8">
+                {/* Money Icon */}
+                <div className="flex justify-center mb-6">
+                  <div className="relative">
+                    <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-emerald-200 dark:from-green-900/40 dark:to-emerald-900/40 rounded-full flex items-center justify-center shadow-lg">
+                      <BanknotesIcon className="w-12 h-12 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-20"></div>
+                  </div>
+                </div>
+
+                {/* Title */}
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-3">
+                  Release Payment?
+                </h2>
+
+                {/* Description */}
+                <p className="text-gray-600 dark:text-gray-300 text-center mb-6 leading-relaxed">
+                  This will transfer the funds to the freelancer. This action cannot be undone.
+                </p>
+
+                {/* Payment Summary */}
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-750 rounded-xl p-5 mb-6 border-2 border-gray-200 dark:border-gray-600">
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Payment Details</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Escrow Amount:</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {parseFloat(task.escrow.total_amount).toFixed(2)} EGP
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Platform Fee:</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {parseFloat(task.escrow.platform_fee_amount).toFixed(2)} EGP
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm pt-2 border-t border-gray-300 dark:border-gray-600">
+                      <span className="font-medium text-gray-700 dark:text-gray-300">Freelancer Receives:</span>
+                      <span className="font-bold text-green-600 dark:text-green-400 text-lg">
+                        {parseFloat(task.escrow.freelancer_amount).toFixed(2)} EGP
+                      </span>
+                    </div>
+                  </div>
+                  {task.assigned_to && (
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Payment to: <span className="font-semibold text-gray-900 dark:text-white">{task.assigned_to.username}</span>
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Warning */}
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-6">
+                  <div className="flex gap-3">
+                    <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-amber-800 dark:text-amber-300">
+                      <span className="font-semibold">Important:</span> Once released, this payment cannot be reversed. Make sure the work is completed to your satisfaction.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => setShowReleasePaymentModal(false)}
+                    disabled={isReleasingPayment}
+                    className="flex-1 px-6 py-3.5 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleReleasePaymentConfirm}
+                    disabled={isReleasingPayment}
+                    className="flex-1 px-6 py-3.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+                  >
+                    {isReleasingPayment ? (
+                      <span className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Releasing Payment...
+                      </span>
+                    ) : (
+                      <>
+                        <BanknotesIcon className="w-5 h-5 inline mr-2" />
+                        Yes, Release Payment
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Report Task Modal */}
+        {showReportModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn"
+               onClick={(e) => {
+                 if (e.target === e.currentTarget) {
+                   setShowReportModal(false);
+                 }
+               }}>
+            <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl transform transition-all animate-scaleIn">
+              <div className="p-8">
+                {/* Icon */}
+                <div className="flex justify-center mb-6">
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                    <FlagIcon className="w-8 h-8 text-red-600" />
+                  </div>
+                </div>
+
+                {/* Title */}
+                <h2 className="text-2xl font-bold text-gray-900 text-center mb-3">
+                  Report This Task
+                </h2>
+                <p className="text-gray-600 text-center mb-6">
+                  Help us maintain quality by reporting inappropriate content
+                </p>
+
+                {/* Report Reasons */}
+                <div className="space-y-3 mb-6">
+                  {[
+                    'Inappropriate content',
+                    'Misleading information',
+                    'Suspected scam',
+                    'Already completed elsewhere',
+                    'Other reason'
+                  ].map((reason) => (
+                    <label key={reason} className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <input type="radio" name="report_reason" className="mr-3" />
+                      <span className="text-gray-700">{reason}</span>
+                    </label>
+                  ))}
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowReportModal(false)}
+                    className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      toast.success('Report submitted. We will review it shortly.');
+                      setShowReportModal(false);
+                    }}
+                    className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors"
+                  >
+                    Submit Report
                   </button>
                 </div>
               </div>

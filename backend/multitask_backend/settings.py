@@ -74,6 +74,7 @@ INSTALLED_APPS = [
     'chatbot.apps.ChatbotConfig',
     'messaging.apps.MessagingConfig',
     'notifications.apps.NotificationsConfig',
+    'payments.apps.PaymentsConfig',
 
     'django_extensions',
 ]
@@ -377,6 +378,7 @@ RECOMMENDATION_WEIGHTS = {
 # EMAIL SETTINGS
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'noreply@multitask.com'
 
 # For production, use real email:
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -585,3 +587,16 @@ SPECTACULAR_SETTINGS = {
     'COMPONENT_SPLIT_REQUEST': True,
 }
 
+
+# STRIPE PAYMENT SETTINGS
+STRIPE_PUBLISHABLE_KEY = config('STRIPE_PUBLISHABLE_KEY', default='')
+STRIPE_SECRET_KEY = config('STRIPE_SECRET_KEY', default='')
+STRIPE_WEBHOOK_SECRET = config('STRIPE_WEBHOOK_SECRET', default='')
+
+# Payment configuration
+PLATFORM_FEE_PERCENTAGE = config('PLATFORM_FEE_PERCENTAGE', default=15.0, cast=float)
+MINIMUM_WITHDRAWAL_AMOUNT = config('MINIMUM_WITHDRAWAL_AMOUNT', default=50.0, cast=float)
+ESCROW_AUTO_RELEASE_DAYS = config('ESCROW_AUTO_RELEASE_DAYS', default=7, cast=int)
+
+# Frontend URL (for redirect callbacks)
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')

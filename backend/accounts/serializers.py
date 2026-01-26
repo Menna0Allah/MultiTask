@@ -4,6 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework.validators import UniqueValidator
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import authenticate
+from .models import PortfolioItem
 
 User = get_user_model()
 
@@ -69,7 +70,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             password=validated_data['password'],
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', ''),
-            user_type=validated_data.get('user_type', 'CLIENT'),
+            user_type=validated_data.get('user_type', 'client'),
             phone_number=validated_data.get('phone_number', ''),
             city=validated_data.get('city', ''),
             country=validated_data.get('country', ''),
@@ -155,7 +156,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
     is_freelancer = serializers.ReadOnlyField()
     total_tasks_posted = serializers.SerializerMethodField()
     total_tasks_completed = serializers.SerializerMethodField()
-    
+    portfolio_items = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
@@ -163,35 +165,49 @@ class UserDetailSerializer(serializers.ModelSerializer):
             'user_type', 'bio', 'profile_picture', 'phone_number',
             'city', 'country', 'skills', 'average_rating', 'total_reviews',
             'is_verified', 'is_client', 'is_freelancer',
-            'total_tasks_posted', 'total_tasks_completed',
+            'total_tasks_posted', 'total_tasks_completed', 'portfolio_items',
             'date_joined', 'created_at'
         ]
         read_only_fields = [
             'id', 'date_joined', 'created_at', 'average_rating',
             'total_reviews', 'is_verified'
         ]
-    
+
     def get_full_name(self, obj):
         return obj.get_full_name()
-    
+
     def get_total_tasks_posted(self, obj):
         return obj.posted_tasks.count()
-    
+
     def get_total_tasks_completed(self, obj):
         return obj.assigned_tasks.filter(status='COMPLETED').count()
+
+    def get_portfolio_items(self, obj):
+        from .serializers import PortfolioItemSerializer
+        portfolio_items = obj.portfolio_items.all()
+        return PortfolioItemSerializer(portfolio_items, many=True).data
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
     """
     Serializer for updating user profile
     """
+    # Make all fields optional for partial updates
+    first_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    last_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    bio = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    phone_number = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=20)
+    city = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=100)
+    country = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=100)
+    skills = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
     class Meta:
         model = User
         fields = [
             'first_name', 'last_name', 'bio', 'profile_picture',
             'phone_number', 'city', 'country', 'skills'
         ]
-    
+
     def validate_profile_picture(self, value):
         """Validate image size"""
         if value and value.size > 5 * 1024 * 1024:  # 5MB limit
@@ -244,15 +260,99 @@ class PublicUserSerializer(serializers.ModelSerializer):
     Public user info (for displaying in task lists, etc.)
     """
     full_name = serializers.SerializerMethodField()
-    
+    total_tasks_completed = serializers.SerializerMethodField()
+    total_tasks_posted = serializers.SerializerMethodField()
+    member_since = serializers.SerializerMethodField()
+    portfolio_items = serializers.SerializerMethodField()
+    user_skills = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'full_name', 'profile_picture',
+            'id', 'username', 'first_name', 'last_name', 'full_name',
+            'profile_picture', 'bio', 'skills', 'user_skills',
             'city', 'country', 'average_rating', 'total_reviews',
-            'is_verified', 'user_type'
+            'is_verified', 'user_type', 'total_tasks_completed',
+            'total_tasks_posted', 'member_since', 'portfolio_items',
+            'date_joined'
         ]
         read_only_fields = fields
-    
+
     def get_full_name(self, obj):
         return obj.get_full_name()
+
+    def get_total_tasks_completed(self, obj):
+        return obj.assigned_tasks.filter(status='COMPLETED').count()
+
+    def get_total_tasks_posted(self, obj):
+        return obj.posted_tasks.count()
+
+    def get_member_since(self, obj):
+        return obj.date_joined.strftime('%B %Y')
+
+    def get_portfolio_items(self, obj):
+        portfolio_items = obj.portfolio_items.all()[:6]  # Limit to 6 items
+        return PortfolioItemSerializer(portfolio_items, many=True).data
+
+    def get_user_skills(self, obj):
+        """Get structured skills from UserSkill model"""
+        try:
+            from recommendations.skill_model import UserSkill
+            user_skills = UserSkill.objects.filter(user=obj).select_related('skill')
+            return [
+                {
+                    'id': us.skill.id,
+                    'name': us.skill.name,
+                    'category': us.skill.category,
+                    'proficiency': us.proficiency
+                }
+                for us in user_skills
+            ]
+        except Exception:
+            return []
+
+
+class PortfolioItemSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Portfolio Items
+    """
+    user_username = serializers.CharField(source='user.username', read_only=True)
+
+    class Meta:
+        model = PortfolioItem
+        fields = [
+            'id', 'user', 'user_username', 'title', 'description',
+            'project_url', 'image', 'technologies', 'date_completed',
+            'order', 'is_featured', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'user', 'user_username', 'created_at', 'updated_at']
+
+    def validate_project_url(self, value):
+        """Validate project URL if provided"""
+        if value and not value.startswith(('http://', 'https://')):
+            raise serializers.ValidationError("URL must start with http:// or https://")
+        return value
+
+    def create(self, validated_data):
+        """Set the user from the request context"""
+        request = self.context.get('request')
+        validated_data['user'] = request.user
+        return super().create(validated_data)
+
+
+class PortfolioItemUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for updating Portfolio Items (doesn't include user field)
+    """
+    class Meta:
+        model = PortfolioItem
+        fields = [
+            'title', 'description', 'project_url', 'image',
+            'technologies', 'date_completed', 'order', 'is_featured'
+        ]
+
+    def validate_project_url(self, value):
+        """Validate project URL if provided"""
+        if value and not value.startswith(('http://', 'https://')):
+            raise serializers.ValidationError("URL must start with http:// or https://")
+        return value
