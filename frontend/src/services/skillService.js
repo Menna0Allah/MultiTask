@@ -15,6 +15,12 @@ const skillService = {
     const response = await api.get('/recommendations/skills/', { params });
     return response.data;
   },
+  /**
+   * Backward-compatible alias used by some components
+   */
+  getSkills: async (category = null) => {
+    return skillService.getAllSkills(category);
+  },
 
   /**
    * Get current user's skills (with proficiency levels)

@@ -229,7 +229,8 @@ const Profile = () => {
     try {
       setLoadingPortfolio(true);
       const data = await portfolioService.getMyPortfolio();
-      setPortfolioItems(data);
+      const items = Array.isArray(data) ? data : (data?.results || data?.items || []);
+      setPortfolioItems(items);
     } catch (error) {
       console.error('Error loading portfolio items:', error);
       toast.error('Failed to load portfolio');
