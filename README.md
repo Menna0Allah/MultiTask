@@ -62,6 +62,7 @@ npm run dev
 ### For Clients
 - Post and manage tasks
 - Browse freelancer directory
+- View freelancer list in Recommendations (same data source as /freelancers)
 - Review applications
 - Hire freelancers
 - Secure escrow payments
@@ -81,6 +82,13 @@ npm run dev
 - AI chatbot assistant
 - Dark mode support
 - Mobile responsive
+
+## Recent Changes (February 7, 2026)
+
+- `/recommendations` now shows the same freelancer list as `/freelancers` for client users.
+- For You stats reflect the active tab (tasks vs freelancers) and role.
+- Freelancer skills rendering handles both array and comma-separated string formats.
+- Freelancer Directory search input has improved light-mode visibility while preserving dark-mode styling.
 
 ## Documentation
 

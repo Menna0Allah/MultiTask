@@ -361,6 +361,12 @@ Located at `/freelancers` (Freelancer Directory)
   - Rating
   - Verification status
 
+### Client Recommendations View (Freelancers Tab)
+Located at `/recommendations` (For You page)
+- Uses the same freelancer list as `/freelancers` for consistent results
+- Stats reflect the active tab (tasks vs freelancers) and user role
+- Handles freelancer skills data stored as arrays or comma-separated strings
+
 ---
 
 ## Environment Variables
@@ -422,4 +428,4 @@ npm run dev
 
 ---
 
-*Last Updated: January 2026*
+*Last Updated: February 7, 2026*
