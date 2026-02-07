@@ -20,6 +20,7 @@ import {
 import { HeartIcon as HeartSolidIcon, StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import recommendationService from '../services/recommendationService';
 import taskService from '../services/taskService';
+import userService from '../services/userService';
 import Badge from '../components/common/Badge';
 import Card from '../components/common/Card';
 import Loading from '../components/common/Loading';
@@ -75,6 +76,15 @@ const ForYou = () => {
     fetchRecommendations();
   }, [isClient, isFreelancer]);
 
+  // Keep the active tab aligned with role
+  useEffect(() => {
+    if (isClient && !isFreelancer) {
+      setActiveTab('services');
+    } else if (isFreelancer && !isClient) {
+      setActiveTab('tasks');
+    }
+  }, [isClient, isFreelancer]);
+
   // Save to localStorage whenever savedItems changes
   useEffect(() => {
     localStorage.setItem('forYouSavedItems', JSON.stringify([...savedItems]));
@@ -82,22 +92,45 @@ const ForYou = () => {
 
   // Update stats based on filtered results
   useEffect(() => {
-    // Filter tasks based on match score
-    let filteredTasks = [...tasks];
-    if (minMatchScore > 0) {
-      filteredTasks = filteredTasks.filter(t => (t.match_score || 0) >= minMatchScore);
+    let totalRecommended = 0;
+
+    if (isClient && !isFreelancer) {
+      let filteredFreelancers = [...freelancers];
+      if (minMatchScore > 0) {
+        filteredFreelancers = filteredFreelancers.filter(f => (f.match_score || 0) >= minMatchScore);
+      }
+      totalRecommended = filteredFreelancers.length;
+    } else if (!isClient && isFreelancer) {
+      let filteredTasks = [...tasks];
+      if (minMatchScore > 0) {
+        filteredTasks = filteredTasks.filter(t => (t.match_score || 0) >= minMatchScore);
+      }
+      totalRecommended = filteredTasks.length;
+    } else if (isClient && isFreelancer) {
+      if (activeTab === 'services') {
+        let filteredFreelancers = [...freelancers];
+        if (minMatchScore > 0) {
+          filteredFreelancers = filteredFreelancers.filter(f => (f.match_score || 0) >= minMatchScore);
+        }
+        totalRecommended = filteredFreelancers.length;
+      } else {
+        let filteredTasks = [...tasks];
+        if (minMatchScore > 0) {
+          filteredTasks = filteredTasks.filter(t => (t.match_score || 0) >= minMatchScore);
+        }
+        totalRecommended = filteredTasks.length;
+      }
     }
 
     setStats({
-      totalRecommended: filteredTasks.length,
+      totalRecommended,
       totalSaved: savedItems.size,
       matchingEnabled: true,
     });
-  }, [tasks, minMatchScore, savedItems.size]);
+  }, [tasks, freelancers, minMatchScore, savedItems.size, isClient, isFreelancer, activeTab]);
 
   const fetchRecommendations = async () => {
-    // Only fetch if user is a freelancer
-    if (!isFreelancer) {
+    if (!isFreelancer && !isClient) {
       setLoading(false);
       return;
     }
@@ -105,12 +138,30 @@ const ForYou = () => {
     try {
       setLoading(true);
 
-      // Fetch recommended tasks for freelancers
-      // Use force_refresh=true to bypass cache (recommendations update immediately)
-      const data = await recommendationService.getRecommendedTasks({ force_refresh: true });
-      setTasks(data.results || data || []);
+      const requests = [];
+      if (isFreelancer) {
+        requests.push(
+          recommendationService.getRecommendedTasks({ force_refresh: true })
+        );
+      }
+      if (isClient) {
+        requests.push(
+          userService.getFreelancers({ ordering: '-average_rating' })
+        );
+      }
 
-      // Stats will be updated by the useEffect that watches for data changes
+      const results = await Promise.all(requests);
+      let resultIndex = 0;
+
+      if (isFreelancer) {
+        const tasksData = results[resultIndex++];
+        setTasks(tasksData.results || tasksData || []);
+      }
+
+      if (isClient) {
+        const freelancersData = results[resultIndex++];
+        setFreelancers(freelancersData.results || freelancersData || []);
+      }
     } catch (error) {
       console.error('Error fetching recommendations:', error);
       toast.error('Failed to load recommendations');
@@ -227,6 +278,18 @@ const ForYou = () => {
       return 'Good match with several matching factors';
     }
     return 'Potential match worth exploring';
+  };
+
+  const getSkillsArray = (skills) => {
+    if (!skills) return [];
+    if (Array.isArray(skills)) return skills;
+    if (typeof skills === 'string') {
+      return skills
+        .split(',')
+        .map((skill) => skill.trim())
+        .filter(Boolean);
+    }
+    return [];
   };
 
   if (loading) {
@@ -577,10 +640,10 @@ const ForYou = () => {
                         </div>
 
                         {/* Skills */}
-                        {freelancer.skills && freelancer.skills.length > 0 && (
+                        {getSkillsArray(freelancer.skills).length > 0 && (
                           <div className="mb-3">
                             <div className="flex flex-wrap gap-1.5">
-                              {freelancer.skills.slice(0, 3).map((skill, index) => (
+                              {getSkillsArray(freelancer.skills).slice(0, 3).map((skill, index) => (
                                 <span
                                   key={index}
                                   className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200"
@@ -588,9 +651,9 @@ const ForYou = () => {
                                   {skill}
                                 </span>
                               ))}
-                              {freelancer.skills.length > 3 && (
+                              {getSkillsArray(freelancer.skills).length > 3 && (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 dark:from-purple-900/30 dark:to-pink-900/30 dark:text-purple-400">
-                                  +{freelancer.skills.length - 3}
+                                  +{getSkillsArray(freelancer.skills).length - 3}
                                 </span>
                               )}
                             </div>
@@ -831,10 +894,10 @@ const ForYou = () => {
                       </div>
 
                       {/* Skills */}
-                      {freelancer.skills && freelancer.skills.length > 0 && (
+                      {getSkillsArray(freelancer.skills).length > 0 && (
                         <div className="mb-4">
                           <div className="flex flex-wrap gap-2">
-                            {freelancer.skills.slice(0, 3).map((skill, index) => (
+                            {getSkillsArray(freelancer.skills).slice(0, 3).map((skill, index) => (
                               <span
                                 key={index}
                                 className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600"
@@ -842,9 +905,9 @@ const ForYou = () => {
                                 {skill}
                               </span>
                             ))}
-                            {freelancer.skills.length > 3 && (
+                            {getSkillsArray(freelancer.skills).length > 3 && (
                               <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 dark:from-purple-900/30 dark:to-pink-900/30 dark:text-purple-400 border border-purple-200 dark:border-purple-800">
-                                +{freelancer.skills.length - 3} more
+                                +{getSkillsArray(freelancer.skills).length - 3} more
                               </span>
                             )}
                           </div>

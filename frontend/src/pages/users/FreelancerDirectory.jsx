@@ -207,7 +207,7 @@ const FreelancerDirectory = () => {
                 placeholder="Search by name, skills, or expertise..."
                 value={filters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
-                className="w-full pl-12 pr-4 py-4 rounded-xl text-lg border-0 shadow-xl focus:ring-4 focus:ring-white/30 dark:bg-gray-800 dark:text-white"
+                className="w-full pl-12 pr-4 py-4 rounded-xl text-lg border border-gray-200 bg-white text-gray-900 shadow-xl placeholder:text-gray-500 focus:ring-4 focus:ring-primary-200 focus:border-primary-400 dark:border-0 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 dark:focus:ring-white/30"
               />
             </div>
           </div>
