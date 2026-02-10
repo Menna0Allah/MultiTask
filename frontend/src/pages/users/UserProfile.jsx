@@ -49,6 +49,7 @@ const UserProfile = () => {
 
   useEffect(() => {
     fetchUserProfile();
+    window.scrollTo(0, 0);
   }, [username]);
 
   useEffect(() => {
@@ -93,7 +94,11 @@ const UserProfile = () => {
       navigate('/login');
       return;
     }
-    navigate('/messages', { state: { startConversationWith: user } });
+    if (user?.id) {
+      navigate(`/messages?user=${user.id}`);
+    } else {
+      navigate('/messages');
+    }
   };
 
   if (loading) {
@@ -241,7 +246,7 @@ const UserProfile = () => {
                 {!isOwnProfile && (
                   <Button
                     onClick={handleStartConversation}
-                    className="bg-white text-primary-600 hover:bg-gray-100 font-semibold shadow-lg"
+                    className="bg-gray-900 text-white hover:bg-gray-800 font-semibold shadow-lg"
                   >
                     <EnvelopeIcon className="w-5 h-5 mr-2" />
                     Send Message
@@ -501,6 +506,7 @@ const UserProfile = () => {
                   variant="primary"
                   fullWidth
                   icon={EnvelopeIcon}
+                  className="bg-gray-900 hover:bg-gray-800 text-white"
                 >
                   Send Message
                 </Button>

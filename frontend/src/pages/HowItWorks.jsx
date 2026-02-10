@@ -20,6 +20,12 @@ import {
 
 const HowItWorks = () => {
   const [activeTab, setActiveTab] = useState('client'); // 'client' or 'freelancer'
+  const [heroReady, setHeroReady] = useState(false);
+
+  React.useEffect(() => {
+    const id = requestAnimationFrame(() => setHeroReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   const clientSteps = [
     {
@@ -261,19 +267,19 @@ const HowItWorks = () => {
         <div className="container-custom relative z-10 px-4 sm:px-6">
           <div className="max-w-4xl mx-auto text-center">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white mb-6 sm:mb-8">
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white mb-6 sm:mb-8 ${heroReady ? 'animate-fade-in' : 'opacity-0'}`}>
               <SparklesIcon className="w-4 h-4" />
               <span className="text-sm font-medium">Simple & Powerful Platform</span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-4 sm:mb-6 px-4">
+            <h1 className={`text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-4 sm:mb-6 px-4 ${heroReady ? 'animate-fade-in animation-delay-200' : 'opacity-0'}`}>
               How
               <span className="block bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent mt-2">
                 MultiTask Works
               </span>
             </h1>
 
-            <p className="text-lg sm:text-xl md:text-2xl text-gray-200 max-w-3xl mx-auto mb-8 sm:mb-10 px-4">
+            <p className={`text-lg sm:text-xl md:text-2xl text-gray-200 max-w-3xl mx-auto mb-8 sm:mb-10 px-4 ${heroReady ? 'animate-fade-in animation-delay-300' : 'opacity-0'}`}>
               Your complete guide to getting things done - whether you're hiring talent or offering your skills
             </p>
           </div>
@@ -501,7 +507,7 @@ const HowItWorks = () => {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center px-4">
             <Link to="/register" className="w-full sm:w-auto">
-              <Button size="lg" className="bg-white hover:bg-gray-100 px-8 sm:px-10 py-4 sm:py-5 text-base sm:text-lg font-bold shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all !text-purple-600 dark:!text-purple-700 w-full sm:w-auto">
+              <Button size="lg" className="bg-white hover:bg-gray-100 px-8 sm:px-10 py-4 sm:py-5 text-base sm:text-lg font-bold shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all !text-purple-600 dark:!text-purple-700 hover:!text-white dark:hover:!text-white w-full sm:w-auto">
                 Sign Up Now
                 <ArrowRightIcon className="w-5 h-5 ml-2 inline" />
               </Button>

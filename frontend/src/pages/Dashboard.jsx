@@ -36,6 +36,7 @@ const Dashboard = () => {
   const [recommendedTasks, setRecommendedTasks] = useState([]);
   const [wallet, setWallet] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [hasInitialData, setHasInitialData] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
 
@@ -49,17 +50,41 @@ const Dashboard = () => {
     }
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+    try {
+      const cacheKey = `dashboardCache_${user.id || user.username || 'user'}`;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed) {
+          if (parsed.stats) setStats(parsed.stats);
+          if (parsed.recentTasks) setRecentTasks(parsed.recentTasks);
+          if (parsed.recommendedTasks) setRecommendedTasks(parsed.recommendedTasks);
+          if (parsed.wallet) setWallet(parsed.wallet);
+          setLoading(false);
+          setHasInitialData(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading dashboard cache:', error);
+    }
+  }, [user]);
+
   const fetchDashboardData = async () => {
     try {
-      setLoading(true);
+      if (!hasInitialData) {
+        setLoading(true);
+      }
 
       // Fetch statistics
       const statsData = await taskService.getMyStatistics();
       setStats(statsData);
 
       // Fetch wallet data
+      let walletData = null;
       try {
-        const walletData = await paymentService.getWallet();
+        walletData = await paymentService.getWallet();
         setWallet(walletData);
       } catch (walletError) {
         console.error('Error fetching wallet data:', walletError);
@@ -67,23 +92,38 @@ const Dashboard = () => {
       }
 
       // Fetch recent tasks with more details
+      let recentData = [];
       if (isClient) {
         const tasksData = await taskService.getMyTasks({ ordering: '-created_at' });
-        setRecentTasks(tasksData.results?.slice(0, 8) || []);
+        recentData = tasksData.results?.slice(0, 8) || [];
       } else {
         const appsData = await taskService.getMyApplications({ ordering: '-created_at' });
-        setRecentTasks(appsData.results?.slice(0, 8) || []);
+        recentData = appsData.results?.slice(0, 8) || [];
       }
+      setRecentTasks(recentData);
 
       // Fetch recommendations for freelancers
+      let recommendedData = [];
       if (isFreelancer) {
         const recData = await recommendationService.getRecommendedTasks({ limit: 5 });
-        setRecommendedTasks(recData.results || recData || []);
+        recommendedData = recData.results || recData || [];
+        setRecommendedTasks(recommendedData);
+      }
+
+      if (user) {
+        const cacheKey = `dashboardCache_${user.id || user.username || 'user'}`;
+        localStorage.setItem(cacheKey, JSON.stringify({
+          stats: statsData || null,
+          recentTasks: recentData,
+          recommendedTasks: recommendedData,
+          wallet: walletData || null,
+        }));
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
+      setHasInitialData(true);
     }
   };
 
@@ -136,7 +176,7 @@ const Dashboard = () => {
     }
   };
 
-  if (loading) {
+  if (loading && !hasInitialData) {
     return (
       <div className="container-custom py-12">
         <Loading />

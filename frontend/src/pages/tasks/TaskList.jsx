@@ -34,6 +34,8 @@ const TaskList = () => {
   const [pagination, setPagination] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState('grid'); // grid or list
+  const [heroReady, setHeroReady] = useState(false);
+  const [hasInitialData, setHasInitialData] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
@@ -52,6 +54,37 @@ const TaskList = () => {
   }, []);
 
   useEffect(() => {
+    try {
+      const cached = localStorage.getItem('taskCategoriesCache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          setCategories(parsed);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading category cache:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem('taskListCache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && Array.isArray(parsed.tasks)) {
+          setTasks(parsed.tasks);
+          setPagination(parsed.pagination || null);
+          setLoading(false);
+          setHasInitialData(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading task cache:', error);
+    }
+  }, []);
+
+  useEffect(() => {
     setCurrentPage(1);
   }, [debouncedSearch, selectedCategory, selectedType, selectedLocation, minBudget, maxBudget, sortBy, selectedSkills]);
 
@@ -60,11 +93,17 @@ const TaskList = () => {
     fetchTasks(currentPage);
   }, [currentPage, debouncedSearch, selectedCategory, selectedType, selectedLocation, minBudget, maxBudget, sortBy, selectedSkills]);
 
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setHeroReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
   const fetchCategories = async () => {
     try {
       const data = await taskService.getCategories();
       const categoriesArray = Array.isArray(data) ? data : (data.results || []);
       setCategories(categoriesArray);
+      localStorage.setItem('taskCategoriesCache', JSON.stringify(categoriesArray));
     } catch (error) {
       console.error('Error fetching categories:', error);
       setCategories([]);
@@ -73,7 +112,9 @@ const TaskList = () => {
 
   const fetchTasks = async (page = 1) => {
     try {
-      setLoading(true);
+      if (!hasInitialData) {
+        setLoading(true);
+      }
 
       const params = {
         page,
@@ -101,11 +142,17 @@ const TaskList = () => {
 
       const data = await taskService.getTasks(params);
       setTasks(data.results || []);
-      setPagination({
+      const nextPagination = {
         count: data.count,
         next: data.next,
         previous: data.previous,
-      });
+      };
+      setPagination(nextPagination);
+      localStorage.setItem('taskListCache', JSON.stringify({
+        tasks: data.results || [],
+        pagination: nextPagination,
+      }));
+      setHasInitialData(true);
     } catch (error) {
       console.error('Error fetching tasks:', error);
       toast.error('Failed to load tasks. Please try again.');
@@ -247,24 +294,24 @@ const TaskList = () => {
         <div className="container-custom relative z-10 px-4 sm:px-6">
           <div className="text-center mb-8 sm:mb-10">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white mb-6">
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white mb-6 ${heroReady ? 'animate-fade-in' : 'opacity-0'}`}>
               <BriefcaseIcon className="w-4 h-4" />
               <span className="text-sm font-medium">{pagination?.count || 0} Open Tasks Available</span>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 sm:mb-6 px-4">
+            <h1 className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 sm:mb-6 px-4 ${heroReady ? 'animate-fade-in animation-delay-200' : 'opacity-0'}`}>
               Find Your Next
               <span className="block bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent mt-2">
                 Perfect Task
               </span>
             </h1>
 
-            <p className="text-base sm:text-lg md:text-xl text-gray-200 max-w-2xl mx-auto mb-8 px-4">
+            <p className={`text-base sm:text-lg md:text-xl text-gray-200 max-w-2xl mx-auto mb-8 px-4 ${heroReady ? 'animate-fade-in animation-delay-300' : 'opacity-0'}`}>
               Browse thousands of tasks and start earning with your skills today
             </p>
 
             {/* Search Bar */}
-            <div className="max-w-3xl mx-auto px-4">
+            <div className={`max-w-3xl mx-auto px-4 ${heroReady ? 'animate-fade-in animation-delay-400' : 'opacity-0'}`}>
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-0 backdrop-blur-lg border border-gray-200 dark:border-gray-700">
                 <div className="flex items-center flex-1">
                   <MagnifyingGlassIcon className="w-6 h-6 text-gray-400 mx-4" />
@@ -290,7 +337,7 @@ const TaskList = () => {
 
           {/* Quick Category Filters */}
           {categories.length > 0 && (
-            <div className="flex flex-wrap justify-center gap-2 sm:gap-3 max-w-4xl mx-auto px-4">
+            <div className={`flex flex-wrap justify-center gap-2 sm:gap-3 max-w-4xl mx-auto px-4 ${heroReady ? 'animate-fade-in animation-delay-400' : 'opacity-0'}`}>
               {categories.slice(0, 6).map((cat) => (
                 <button
                   key={cat.id}

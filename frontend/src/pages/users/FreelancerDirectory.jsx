@@ -17,12 +17,10 @@ import {
   MapPinIcon,
   StarIcon,
   CheckCircleIcon,
-  BriefcaseIcon,
   UserGroupIcon,
   AdjustmentsHorizontalIcon,
   XMarkIcon,
   ChevronDownIcon,
-  SparklesIcon,
 } from '@heroicons/react/24/outline';
 
 const FreelancerDirectory = () => {
@@ -33,6 +31,8 @@ const FreelancerDirectory = () => {
   const [loading, setLoading] = useState(true);
   const [skills, setSkills] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [heroReady, setHeroReady] = useState(false);
+  const [hasInitialData, setHasInitialData] = useState(false);
 
   // Redirect freelancer-only users - Freelancer Directory is only for clients
   useEffect(() => {
@@ -72,8 +72,31 @@ const FreelancerDirectory = () => {
   }, []);
 
   useEffect(() => {
+    try {
+      const cached = localStorage.getItem('freelancerDirectoryCache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && Array.isArray(parsed.freelancers)) {
+          setFreelancers(parsed.freelancers);
+          setTotalCount(parsed.totalCount || parsed.freelancers.length);
+          setHasMore(Boolean(parsed.hasMore));
+          setLoading(false);
+          setHasInitialData(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading freelancer cache:', error);
+    }
+  }, []);
+
+  useEffect(() => {
     fetchFreelancers();
   }, [debouncedSearch, filters.skill, filters.city, filters.minRating, filters.verified, filters.ordering]);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setHeroReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   const fetchSkills = async () => {
     try {
@@ -86,7 +109,9 @@ const FreelancerDirectory = () => {
 
   const fetchFreelancers = async (loadMore = false) => {
     try {
-      setLoading(true);
+      if (!hasInitialData || loadMore) {
+        setLoading(true);
+      }
 
       const params = {
         user_type: 'freelancer',
@@ -128,15 +153,29 @@ const FreelancerDirectory = () => {
       }
 
       if (loadMore) {
-        setFreelancers(prev => [...prev, ...filteredResults]);
+        setFreelancers(prev => {
+          const next = [...prev, ...filteredResults];
+          localStorage.setItem('freelancerDirectoryCache', JSON.stringify({
+            freelancers: next,
+            totalCount: data.count || next.length,
+            hasMore: data.next !== null,
+          }));
+          return next;
+        });
         setPage(page + 1);
       } else {
         setFreelancers(filteredResults);
         setPage(1);
+        localStorage.setItem('freelancerDirectoryCache', JSON.stringify({
+          freelancers: filteredResults,
+          totalCount: data.count || filteredResults.length,
+          hasMore: data.next !== null,
+        }));
       }
 
       setTotalCount(data.count || filteredResults.length);
       setHasMore(data.next !== null);
+      setHasInitialData(true);
     } catch (err) {
       console.error('Error fetching freelancers:', err);
     } finally {
@@ -180,39 +219,58 @@ const FreelancerDirectory = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Hero Section */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-primary-600 via-purple-600 to-blue-600 dark:from-primary-700 dark:via-purple-700 dark:to-blue-700 py-16">
+      <section className="relative bg-gradient-to-br from-slate-950 via-blue-950 to-amber-900/80 dark:from-slate-950 dark:via-blue-950 dark:to-amber-950 py-14 sm:py-20 md:py-24 overflow-hidden min-h-[62vh] flex items-center">
+        {/* Animated Background */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-20 -right-20 w-80 h-80 bg-white/10 rounded-full blur-3xl"></div>
-          <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
+          <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-amber-400/15 to-transparent rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-sky-400/10 to-transparent rounded-full blur-3xl animate-pulse delay-1000"></div>
         </div>
 
-        <div className="container-custom relative z-10 px-6 md:px-8 lg:px-12 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-white text-sm font-medium mb-4">
-            <UserGroupIcon className="w-5 h-5" />
-            {totalCount}+ Talented Freelancers
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            Find Your Perfect Freelancer
-          </h1>
-          <p className="text-xl text-white/90 max-w-2xl mx-auto mb-8">
-            Browse our talented community of freelancers ready to help with your projects
-          </p>
+        <div className="container-custom relative z-10 px-4 sm:px-6 w-full">
+          <div className="text-center mb-10 sm:mb-12">
+            {/* Badge */}
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/15 text-white mb-7 ${heroReady ? 'animate-fade-in' : 'opacity-0'}`}>
+              <UserGroupIcon className="w-4 h-4" />
+              <span className="text-sm font-medium">{totalCount || 0} Talented Freelancers</span>
+            </div>
 
-          {/* Search Bar */}
-          <div className="max-w-2xl mx-auto">
-            <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by name, skills, or expertise..."
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-                className="w-full pl-12 pr-4 py-4 rounded-xl text-lg border border-gray-200 bg-white text-gray-900 shadow-xl placeholder:text-gray-500 focus:ring-4 focus:ring-primary-200 focus:border-primary-400 dark:border-0 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 dark:focus:ring-white/30"
-              />
+            <h1 className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-5 sm:mb-7 px-4 ${heroReady ? 'animate-fade-in animation-delay-200' : 'opacity-0'}`}>
+              Find Your Next
+              <span className="block bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-300 bg-clip-text text-transparent mt-3">
+                Perfect Freelancer
+              </span>
+            </h1>
+
+            <p className={`text-base sm:text-lg md:text-xl text-slate-200 max-w-2xl mx-auto mb-9 px-4 ${heroReady ? 'animate-fade-in animation-delay-300' : 'opacity-0'}`}>
+              Browse thousands of professionals and hire with confidence today
+            </p>
+
+            {/* Search Bar */}
+            <div className={`max-w-3xl mx-auto px-4 ${heroReady ? 'animate-fade-in animation-delay-400' : 'opacity-0'}`}>
+              <div className="bg-white/95 dark:bg-slate-900/80 rounded-2xl shadow-2xl p-2.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-0 backdrop-blur-lg border border-white/40 dark:border-white/10">
+                <div className="flex items-center flex-1">
+                  <MagnifyingGlassIcon className="w-6 h-6 text-gray-400 mx-4" />
+                  <input
+                    type="text"
+                    placeholder="Search for freelancers..."
+                    value={filters.search}
+                    onChange={(e) => handleFilterChange('search', e.target.value)}
+                    className="flex-1 outline-none text-gray-900 dark:text-gray-100 bg-transparent px-2 py-4 text-base sm:text-lg placeholder-gray-500"
+                  />
+                </div>
+                <Button
+                  onClick={() => fetchFreelancers()}
+                  variant="primary"
+                  size="lg"
+                  className="px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-600 hover:to-yellow-500 text-slate-900 w-full sm:w-auto"
+                >
+                  Search
+                </Button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Main Content */}
       <div className="container-custom py-8 px-6 md:px-8 lg:px-12">

@@ -37,6 +37,7 @@ const ForYou = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [tasks, setTasks] = useState([]);
   const [freelancers, setFreelancers] = useState([]);
+  const [hasInitialData, setHasInitialData] = useState(false);
   const [savedItems, setSavedItems] = useState(new Set());
   const [activeTab, setActiveTab] = useState('tasks'); // 'tasks' or 'services'
   const [stats, setStats] = useState({
@@ -68,6 +69,29 @@ const ForYou = () => {
       } catch (error) {
         console.error('Error loading saved items:', error);
       }
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const cachedTasks = localStorage.getItem('forYouCachedTasks');
+      const cachedFreelancers = localStorage.getItem('forYouCachedFreelancers');
+      const tasksData = cachedTasks ? JSON.parse(cachedTasks) : null;
+      const freelancersData = cachedFreelancers ? JSON.parse(cachedFreelancers) : null;
+
+      if (Array.isArray(tasksData)) {
+        setTasks(tasksData);
+      }
+      if (Array.isArray(freelancersData)) {
+        setFreelancers(freelancersData);
+      }
+
+      if (Array.isArray(tasksData) || Array.isArray(freelancersData)) {
+        setHasInitialData(true);
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Error loading cached recommendations:', error);
     }
   }, []);
 
@@ -129,19 +153,21 @@ const ForYou = () => {
     });
   }, [tasks, freelancers, minMatchScore, savedItems.size, isClient, isFreelancer, activeTab]);
 
-  const fetchRecommendations = async () => {
+  const fetchRecommendations = async ({ forceRefresh = false } = {}) => {
     if (!isFreelancer && !isClient) {
       setLoading(false);
       return;
     }
 
     try {
-      setLoading(true);
+      if (!hasInitialData) {
+        setLoading(true);
+      }
 
       const requests = [];
       if (isFreelancer) {
         requests.push(
-          recommendationService.getRecommendedTasks({ force_refresh: true })
+          recommendationService.getRecommendedTasks(forceRefresh ? { force_refresh: true } : {})
         );
       }
       if (isClient) {
@@ -155,13 +181,18 @@ const ForYou = () => {
 
       if (isFreelancer) {
         const tasksData = results[resultIndex++];
-        setTasks(tasksData.results || tasksData || []);
+        const nextTasks = tasksData.results || tasksData || [];
+        setTasks(nextTasks);
+        localStorage.setItem('forYouCachedTasks', JSON.stringify(nextTasks));
       }
 
       if (isClient) {
         const freelancersData = results[resultIndex++];
-        setFreelancers(freelancersData.results || freelancersData || []);
+        const nextFreelancers = freelancersData.results || freelancersData || [];
+        setFreelancers(nextFreelancers);
+        localStorage.setItem('forYouCachedFreelancers', JSON.stringify(nextFreelancers));
       }
+      setHasInitialData(true);
     } catch (error) {
       console.error('Error fetching recommendations:', error);
       toast.error('Failed to load recommendations');
@@ -172,7 +203,7 @@ const ForYou = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchRecommendations();
+    await fetchRecommendations({ forceRefresh: true });
     setRefreshing(false);
     toast.success('Recommendations refreshed!');
   };
@@ -292,7 +323,7 @@ const ForYou = () => {
     return [];
   };
 
-  if (loading) {
+  if (loading && !hasInitialData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <Loading />

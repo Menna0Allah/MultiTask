@@ -183,15 +183,15 @@ const Navbar = () => {
                         className="fixed inset-0 z-10"
                         onClick={() => setNotificationsOpen(false)}
                       ></div>
-                      <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg z-20 border border-gray-200 dark:border-gray-700 max-h-96 overflow-hidden">
+                      <div className="absolute right-0 mt-3 w-80 bg-white/95 dark:bg-gray-900/90 backdrop-blur-xl rounded-2xl shadow-2xl z-20 border border-gray-200/60 dark:border-white/10 max-h-96 overflow-hidden flex flex-col">
                         {/* Header */}
-                        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                        <div className="px-4 py-3 border-b border-gray-200/70 dark:border-white/10 bg-white/70 dark:bg-gray-900/70">
                           <div className="flex items-center justify-between">
                             <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
                               Notifications
                             </h3>
                             {unreadCount > 0 && (
-                              <span className="text-xs text-primary-600 dark:text-primary-400">
+                              <span className="text-xs text-white bg-gradient-to-r from-indigo-600 to-purple-600 px-2 py-0.5 rounded-full">
                                 {unreadCount} new
                               </span>
                             )}
@@ -199,7 +199,7 @@ const Navbar = () => {
                         </div>
 
                         {/* Notifications List */}
-                        <div className="overflow-y-auto max-h-80">
+                        <div className="overflow-y-auto flex-1">
                           {notifications.length > 0 ? (
                             notifications.map((notification) => (
                               <Link
@@ -211,16 +211,16 @@ const Navbar = () => {
                                   }
                                   setNotificationsOpen(false);
                                 }}
-                                className={`block px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-0 ${
+                                className={`block px-4 py-3 hover:bg-gray-50/80 dark:hover:bg-gray-800/80 border-b border-gray-100/70 dark:border-white/10 last:border-0 ${
                                   !notification.is_read ? 'bg-primary-50 dark:bg-primary-900/20' : ''
                                 }`}
                               >
                                 <div className="flex items-start space-x-3">
-                                  <div className={`w-2 h-2 mt-2 rounded-full ${
-                                    !notification.is_read ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'
+                                  <div className={`w-2.5 h-2.5 mt-2 rounded-full ${
+                                    !notification.is_read ? 'bg-primary-600 shadow-[0_0_0_3px_rgba(99,102,241,0.15)]' : 'bg-gray-300 dark:bg-gray-600'
                                   }`}></div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
                                       {notification.title}
                                     </p>
                                     <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
@@ -245,13 +245,13 @@ const Navbar = () => {
 
                         {/* Footer */}
                         {notifications.length > 0 && (
-                          <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
+                          <div className="px-4 py-2 border-t border-gray-200/70 dark:border-white/10 bg-white/70 dark:bg-gray-900/70">
                             <button
                               onClick={() => {
                                 setNotificationsOpen(false);
                                 navigate('/notifications');
                               }}
-                              className="text-sm text-primary-600 dark:text-primary-400 hover:underline w-full text-center"
+                              className="text-sm font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 w-full text-center"
                             >
                               View all notifications
                             </button>

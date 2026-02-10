@@ -184,6 +184,16 @@ const Notifications = () => {
     }
   };
 
+  const sanitizeMessage = (message = '') => {
+    if (!message) return '';
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    let cleaned = message;
+    if (origin) {
+      cleaned = cleaned.replaceAll(origin, '');
+    }
+    return cleaned.replace(/https?:\/\/\S+/g, '').trim();
+  };
+
   const filteredNotifications = notifications.filter(notification => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -394,7 +404,7 @@ const Notifications = () => {
                                   {notification.title}
                                 </h3>
                                 <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                                  {notification.message}
+                                  {sanitizeMessage(notification.message)}
                                 </p>
                                 <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
                                   {notification.time_ago}

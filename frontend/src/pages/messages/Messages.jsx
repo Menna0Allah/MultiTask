@@ -319,7 +319,10 @@ const Messages = () => {
     : [];
 
   const getMessageStatus = (msg) => {
-    if (msg.sender.id !== user.id) return null;
+    if (!msg?.sender || !user?.id) return null;
+    const senderId = Number(msg.sender.id);
+    const currentUserId = Number(user.id);
+    if (!senderId || !currentUserId || senderId !== currentUserId) return null;
 
     if (msg.is_read) {
       // Double check for read messages
@@ -539,8 +542,11 @@ const Messages = () => {
               >
                 {messages.length > 0 ? (
                   messages.map((msg, index) => {
-                    const isOwn = msg.sender.id === user.id;
-                    const showAvatar = index === 0 || messages[index - 1].sender.id !== msg.sender.id;
+                    const currentUserId = Number(user?.id);
+                    const currentSenderId = Number(msg?.sender?.id);
+                    const prevSenderId = Number(messages[index - 1]?.sender?.id);
+                    const isOwn = !!currentUserId && !!currentSenderId && currentSenderId === currentUserId;
+                    const showAvatar = index === 0 || prevSenderId !== currentSenderId;
 
                     return (
                       <div
@@ -548,7 +554,7 @@ const Messages = () => {
                         className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${showAvatar ? 'mt-4' : 'mt-1'}`}
                       >
                         {!isOwn && showAvatar && (
-                          <Avatar user={msg.sender} size="sm" className="mr-2 mt-auto" />
+                          <Avatar user={msg.sender || { username: 'User' }} size="sm" className="mr-2 mt-auto" />
                         )}
                         {!isOwn && !showAvatar && (
                           <div className="w-8 mr-2"></div>
@@ -557,7 +563,7 @@ const Messages = () => {
                         <div className={`max-w-[70%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
                           {showAvatar && !isOwn && (
                             <span className="text-xs text-gray-600 dark:text-gray-400 mb-1 px-1">
-                              {msg.sender.username}
+                              {msg?.sender?.username || 'User'}
                             </span>
                           )}
 
@@ -580,7 +586,7 @@ const Messages = () => {
                         </div>
 
                         {isOwn && showAvatar && (
-                          <Avatar user={msg.sender} size="sm" className="ml-2 mt-auto" />
+                          <Avatar user={msg.sender || { username: 'Me' }} size="sm" className="ml-2 mt-auto" />
                         )}
                         {isOwn && !showAvatar && (
                           <div className="w-8 ml-2"></div>

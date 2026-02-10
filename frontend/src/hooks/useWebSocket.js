@@ -9,7 +9,7 @@ export const useWebSocket = (conversationId, onMessage) => {
     if (!conversationId) return;
 
     const token = localStorage.getItem('access_token');
-    const wsUrl = `${import.meta.env.VITE_WS_URL}/chat/${conversationId}/?token=${token}`;
+    const wsUrl = `${import.meta.env.VITE_WS_URL}/ws/chat/${conversationId}/?token=${token}`;
 
     const ws = new WebSocket(wsUrl);
 
