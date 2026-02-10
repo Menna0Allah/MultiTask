@@ -33,7 +33,7 @@ MultiTask is a task marketplace platform where:
 | Backend | Django 5, Django REST Framework |
 | Database | PostgreSQL |
 | Authentication | JWT (SimpleJWT) |
-| Payments | Stripe Connect |
+| Payments | Stripe Connect (initial; Egypt provider planned) |
 | Real-time | Django Channels (WebSocket) |
 | AI | Google Gemini API (Chatbot) |
 
@@ -269,7 +269,7 @@ MultiTask is a task marketplace platform where:
 - Post and manage tasks
 - View and accept/reject applications
 - Browse and hire freelancers
-- Pay freelancers through escrow system
+- Pay freelancers through escrow (in progress; starting with Stripe Connect)
 - Rate and review completed work
 - Message freelancers
 
@@ -277,7 +277,7 @@ MultiTask is a task marketplace platform where:
 - Browse and apply to tasks
 - Receive task recommendations ("For You")
 - Manage applications
-- Receive payments through Stripe Connect
+- Receive payments through escrow (in progress; starting with Stripe Connect)
 - Withdraw earnings to bank account
 - Build portfolio
 - Get rated and reviewed
@@ -308,6 +308,8 @@ MultiTask is a task marketplace platform where:
 ---
 
 ## Payment System
+
+Payments are still being built. We are starting with Stripe Connect for escrow-style payments and plan to switch to a provider that better fits the Egyptian market.
 
 ### Stripe Integration
 - **Stripe Connect** for freelancer payouts
@@ -428,4 +430,4 @@ npm run dev
 
 ---
 
-*Last Updated: February 7, 2026*
+*Last Updated: February 10, 2026*
